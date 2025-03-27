@@ -1,0 +1,170 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.card {
+  padding: 2em;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+button {
+  padding: 10px 15px;
+  font-size: 1rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background-color: #646cff;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+
+button:hover {
+  border-color: #646cff;
+  background-color: #4a51e1;
+}
+
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.message {
+  margin: 1rem 0;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background-color: #333;
+  color: white;
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: white;
+  margin-left: auto;
+  padding: 0 0.5rem;
+}
+
+.close-button:hover {
+  color: #ff6b6b;
+  background: none;
+}
+
+.pdf-list {
+  width: 100%;
+  margin-top: 2rem;
+  text-align: left;
+}
+
+.pdf-list h2 {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.pdf-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.pdf-list li {
+  padding: 0.75rem;
+  border-bottom: 1px solid #3a3a3a;
+  display: flex;
+  align-items: center;
+}
+
+.pdf-list li:last-child {
+  border-bottom: none;
+}
+
+/* Tab styling */
+.tab-container {
+  width: 100%;
+  margin: 0.5rem 0 2rem;
+}
+
+.tab-buttons {
+  display: flex;
+  border-bottom: 1px solid #444;
+  margin-bottom: 1rem;
+}
+
+.tab-button {
+  background: none;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  color: #aaa;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.tab-button:hover {
+  color: white;
+  background: none;
+  border-color: transparent;
+}
+
+.tab-button.active {
+  color: white;
+  border-bottom: 2px solid #646cff;
+}
+
+.tab-content {
+  width: 100%;
+}
+
+@media (prefers-color-scheme: light) {
+  button {
+    background-color: #4a51e1;
+  }
+  button:hover {
+    background-color: #3940c4;
+  }
+  .message {
+    background-color: #f0f0f0;
+    color: #333;
+  }
+  .close-button {
+    color: #333;
+  }
+  .close-button:hover {
+    color: #ff3333;
+  }
+  .pdf-list li {
+    border-bottom: 1px solid #e0e0e0;
+  }
+  .tab-buttons {
+    border-bottom: 1px solid #ddd;
+  }
+  .tab-button {
+    color: #777;
+  }
+  .tab-button:hover {
+    color: #333;
+  }
+  .tab-button.active {
+    color: #333;
+  }
+} 

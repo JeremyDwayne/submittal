@@ -1,0 +1,50 @@
+{
+  "name": "main",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsc && electron .",
+    "build": "tsc",
+    "start": "electron .",
+    "package": "electron-builder",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "electron-is-dev": "^2.0.0",
+    "electron-serve": "^1.1.0",
+    "electron-store": "^8.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "electron": "^29.0.0",
+    "electron-builder": "^24.9.1",
+    "typescript": "^5.3.3"
+  },
+  "build": {
+    "appId": "com.electron.submittal",
+    "productName": "Submittal",
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "buildResources": "assets",
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.productivity"
+    },
+    "extraResources": [
+      {
+        "from": "../../public",
+        "to": "public"
+      },
+      {
+        "from": "../../data",
+        "to": "data"
+      }
+    ]
+  }
+} 

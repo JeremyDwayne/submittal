@@ -1,0 +1,34 @@
+{
+  "name": "submittal",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
+    "dev:renderer": "npm run dev --workspace=renderer",
+    "dev:main": "npm run dev --workspace=main",
+    "build": "npm run build --workspaces",
+    "start": "npm run start --workspace=main",
+    "package": "npm run package --workspace=main",
+    "lint": "eslint . --ext .js,.ts,.tsx",
+    "lint:fix": "eslint . --ext .js,.ts,.tsx --fix",
+    "type-check": "npm run type-check --workspaces",
+    "type-check:main": "npm run type-check --workspace=main",
+    "type-check:renderer": "npm run type-check --workspace=renderer"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Electron app with React renderer",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "@typescript-eslint/eslint-plugin": "^6.18.1",
+    "@typescript-eslint/parser": "^6.18.1",
+    "eslint": "^8.56.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "prettier": "^3.2.1"
+  }
+}
