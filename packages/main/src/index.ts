@@ -6,6 +6,7 @@ const fs = require('fs/promises');
 // Import type definitions
 import type { IpcMainInvokeEvent } from 'electron';
 import { scanPdfDirectory, processBomEntry, processBomEntries } from './utils/pdf-service';
+import { parseBomCsv } from './utils/bom-parser';
 
 let mainWindow: typeof BrowserWindow | null = null;
 
@@ -217,50 +218,13 @@ async function handleProcessBom(_event: IpcMainInvokeEvent, csvFilePath: string,
       };
     }
 
-    // Read the CSV file
-    const csvContent = await fs.readFile(csvFilePath, 'utf-8');
-
-    // Parse CSV content
-    const lines = csvContent.split('\n');
-
-    // Find the header row and identify column indexes
-    const headerLine = lines[0].toLowerCase();
-    const headers = headerLine.split(',').map((h: string) => h.trim());
-
-    const manufacturerIndex = headers.findIndex((h: string) =>
-      h === 'manufacturer' || h === 'brand' || h === 'vendor'
-    );
-
-    const partNumberIndex = headers.findIndex((h: string) =>
-      h === 'part_number' || h === 'partnumber' || h === 'part number' || h === 'part no' || h === 'model'
-    );
-
-    if (manufacturerIndex === -1 || partNumberIndex === -1) {
-      return {
-        success: false,
-        error: 'CSV must contain columns for manufacturer and part number'
-      };
-    }
-
-    // Process rows (skip header)
-    const entries = [];
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue; // Skip empty lines
-
-      const columns = line.split(',').map((c: string) => c.trim());
-
-      if (columns.length <= Math.max(manufacturerIndex, partNumberIndex)) {
-        continue; // Skip invalid rows
-      }
-
-      const manufacturer = columns[manufacturerIndex];
-      const partNumber = columns[partNumberIndex];
-
-      if (manufacturer && partNumber) {
-        entries.push({ manufacturer, partNumber });
-      }
-    }
+    // Parse CSV file using the BOM parser
+    const entries = await parseBomCsv(csvFilePath, {
+      // Try multiple common column names for manufacturer and part number
+      manufacturerField: ['manufacturer', 'brand', 'vendor'],
+      partNumberField: ['part_number', 'partnumber', 'part number', 'part no', 'model'],
+      hasHeaderRow: true
+    });
 
     if (entries.length === 0) {
       return {

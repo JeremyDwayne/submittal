@@ -3,42 +3,113 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
+  padding: 1rem;
 }
 
-.card {
-  padding: 2em;
+.main-container {
+  display: flex;
   width: 100%;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.input-section {
+  flex: 1;
+  min-width: 300px;
+}
+
+.info-section {
+  flex: 1;
+  min-width: 300px;
+}
+
+.file-input-group {
+  margin-bottom: 1.5rem;
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.file-input-group h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  color: #fff;
+}
+
+.file-input-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  gap: 0.75rem;
 }
 
-button {
-  padding: 10px 15px;
-  font-size: 1rem;
-  border-radius: 6px;
-  border: 1px solid transparent;
+.file-select-button {
+  padding: 0.75rem 1.25rem;
   background-color: #646cff;
   color: white;
   font-weight: 500;
+  border: none;
+  border-radius: 6px;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: background-color 0.2s;
+  font-size: 1rem;
+  align-self: center;
 }
 
-button:hover {
-  border-color: #646cff;
+.file-select-button:hover {
   background-color: #4a51e1;
 }
 
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+.file-select-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-button:disabled {
-  opacity: 0.5;
+.file-info {
+  background-color: #333;
+  border-radius: 6px;
+  padding: 0.75rem;
+  word-break: break-all;
+}
+
+.file-info p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.file-info .file-count {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #aaa;
+}
+
+.submit-section {
+  margin: 1.5rem 0;
+  display: flex;
+  justify-content: center;
+}
+
+.submit-button {
+  padding: 1rem 1.5rem;
+  background-color: #22c55e;
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 1.1rem;
+}
+
+.submit-button:hover {
+  background-color: #16a34a;
+}
+
+.submit-button:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
@@ -69,97 +140,138 @@ button:disabled {
   background: none;
 }
 
-.directory-info {
-  margin: 1rem 0;
-  padding: 0.75rem;
-  border-radius: 6px;
+.results-summary {
+  margin: 1.5rem 0;
+  padding: 1rem;
   background-color: #333;
-  width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.results-summary h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  text-align: center;
+  font-size: 1.2rem;
+}
+
+.stats {
+  display: flex;
+  justify-content: space-around;
   text-align: center;
 }
 
-.directory-info p {
-  margin: 0;
-  word-break: break-all;
+.stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #4a51e1;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #aaa;
+}
+
+.instructions {
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.instructions h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+.instructions ol,
+.instructions ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.instructions li {
+  margin-bottom: 0.5rem;
+}
+
+.instructions p {
+  margin: 0.5rem 0;
 }
 
 .pdf-list {
-  width: 100%;
-  margin-top: 2rem;
-  text-align: left;
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.pdf-list h2 {
-  text-align: center;
+.pdf-list h3 {
+  margin-top: 0;
   margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+.pdf-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #444;
+  border-radius: 6px;
 }
 
 .pdf-list ul {
   list-style: none;
   padding: 0;
   margin: 0;
-  max-height: 300px;
-  overflow-y: auto;
-  border: 1px solid #444;
-  border-radius: 6px;
 }
 
 .pdf-list li {
   padding: 0.75rem;
-  border-bottom: 1px solid #3a3a3a;
-  display: flex;
-  align-items: center;
+  border-bottom: 1px solid #444;
+  font-size: 0.9rem;
 }
 
 .pdf-list li:last-child {
   border-bottom: none;
 }
 
-/* Tab styling */
-.tab-container {
-  width: 100%;
-  margin: 0.5rem 0 2rem;
-}
-
-.tab-buttons {
-  display: flex;
-  border-bottom: 1px solid #444;
-  margin-bottom: 1rem;
-}
-
-.tab-button {
-  background: none;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  cursor: pointer;
-  color: #aaa;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s;
-}
-
-.tab-button:hover {
-  color: white;
-  background: none;
-  border-color: transparent;
-}
-
-.tab-button.active {
-  color: white;
-  border-bottom: 2px solid #646cff;
-}
-
-.tab-content {
-  width: 100%;
-}
-
 @media (prefers-color-scheme: light) {
-  button {
+  .file-input-group {
+    background-color: #f8f8f8;
+  }
+
+  .file-input-group h2 {
+    color: #333;
+  }
+
+  .file-select-button {
     background-color: #4a51e1;
   }
 
-  button:hover {
+  .file-select-button:hover {
     background-color: #3940c4;
+  }
+
+  .submit-button {
+    background-color: #16a34a;
+  }
+
+  .submit-button:hover {
+    background-color: #15803d;
+  }
+
+  .file-info {
+    background-color: #eaeaea;
+  }
+
+  .file-info .file-count {
+    color: #666;
   }
 
   .message {
@@ -175,31 +287,28 @@ button:disabled {
     color: #ff3333;
   }
 
-  .directory-info {
+  .results-summary {
     background-color: #f0f0f0;
   }
 
-  .pdf-list li {
-    border-bottom: 1px solid #e0e0e0;
+  .stat-value {
+    color: #3940c4;
   }
 
-  .pdf-list ul {
+  .stat-label {
+    color: #666;
+  }
+
+  .instructions,
+  .pdf-list {
+    background-color: #f8f8f8;
+  }
+
+  .pdf-container {
     border-color: #ddd;
   }
 
-  .tab-buttons {
-    border-bottom: 1px solid #ddd;
-  }
-
-  .tab-button {
-    color: #777;
-  }
-
-  .tab-button:hover {
-    color: #333;
-  }
-
-  .tab-button.active {
-    color: #333;
+  .pdf-list li {
+    border-bottom-color: #ddd;
   }
 }
