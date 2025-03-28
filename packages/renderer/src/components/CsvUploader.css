@@ -68,11 +68,111 @@
   cursor: not-allowed;
 }
 
-.file-info {
+.directory-selection {
   margin: 1rem 0;
   padding: 0.75rem;
   background-color: #333;
   border-radius: 6px;
+}
+
+.directory-selection h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.directory-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.directory-info p {
+  margin: 0;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px;
+}
+
+.directory-button {
+  padding: 0.5rem 1rem;
+  background-color: #4a51e1;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 0.9rem;
+}
+
+.directory-button:hover {
+  background-color: #3940c4;
+}
+
+.process-container {
+  display: flex;
+  justify-content: center;
+  margin: 1rem 0;
+}
+
+.process-button {
+  padding: 0.75rem 1.5rem;
+  background-color: #4a51e1;
+  color: white;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 1rem;
+}
+
+.process-button:hover {
+  background-color: #3940c4;
+}
+
+.process-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.results-summary {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background-color: #333;
+  border-radius: 6px;
+}
+
+.results-summary h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.stats {
+  display: flex;
+  justify-content: space-around;
+  text-align: center;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #4a51e1;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #aaa;
 }
 
 .loading {
@@ -93,8 +193,13 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .instructions {
@@ -124,12 +229,24 @@
     background-color: #f8f8f8;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   }
-  
-  .file-info {
+
+  .directory-selection {
     background-color: #eaeaea;
   }
-  
+
+  .results-summary {
+    background-color: #eaeaea;
+  }
+
+  .stat-value {
+    color: #3940c4;
+  }
+
+  .stat-label {
+    color: #666;
+  }
+
   .instructions {
     background-color: #eaeaea;
   }
-} 
+}

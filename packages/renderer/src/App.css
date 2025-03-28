@@ -3,42 +3,113 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
+  padding: 1rem;
 }
 
-.card {
-  padding: 2em;
+.main-container {
+  display: flex;
   width: 100%;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.input-section {
+  flex: 1;
+  min-width: 300px;
+}
+
+.info-section {
+  flex: 1;
+  min-width: 300px;
+}
+
+.file-input-group {
+  margin-bottom: 1.5rem;
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.file-input-group h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  color: #fff;
+}
+
+.file-input-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  gap: 0.75rem;
 }
 
-button {
-  padding: 10px 15px;
-  font-size: 1rem;
-  border-radius: 6px;
-  border: 1px solid transparent;
+.file-select-button {
+  padding: 0.75rem 1.25rem;
   background-color: #646cff;
   color: white;
   font-weight: 500;
+  border: none;
+  border-radius: 6px;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: background-color 0.2s;
+  font-size: 1rem;
+  align-self: center;
 }
 
-button:hover {
-  border-color: #646cff;
+.file-select-button:hover {
   background-color: #4a51e1;
 }
 
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+.file-select-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-button:disabled {
-  opacity: 0.5;
+.file-info {
+  background-color: #333;
+  border-radius: 6px;
+  padding: 0.75rem;
+  word-break: break-all;
+}
+
+.file-info p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.file-info .file-count {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #aaa;
+}
+
+.submit-section {
+  margin: 1.5rem 0;
+  display: flex;
+  justify-content: center;
+}
+
+.submit-button {
+  padding: 1rem 1.5rem;
+  background-color: #22c55e;
+  color: white;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 1.1rem;
+}
+
+.submit-button:hover {
+  background-color: #16a34a;
+}
+
+.submit-button:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
@@ -69,15 +140,89 @@ button:disabled {
   background: none;
 }
 
-.pdf-list {
-  width: 100%;
-  margin-top: 2rem;
-  text-align: left;
+.results-summary {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background-color: #333;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.pdf-list h2 {
-  text-align: center;
+.results-summary h3 {
+  margin-top: 0;
   margin-bottom: 1rem;
+  text-align: center;
+  font-size: 1.2rem;
+}
+
+.stats {
+  display: flex;
+  justify-content: space-around;
+  text-align: center;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #4a51e1;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #aaa;
+}
+
+.instructions {
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.instructions h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+.instructions ol,
+.instructions ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.instructions li {
+  margin-bottom: 0.5rem;
+}
+
+.instructions p {
+  margin: 0.5rem 0;
+}
+
+.pdf-list {
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pdf-list h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+.pdf-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #444;
+  border-radius: 6px;
 }
 
 .pdf-list ul {
@@ -88,83 +233,378 @@ button:disabled {
 
 .pdf-list li {
   padding: 0.75rem;
-  border-bottom: 1px solid #3a3a3a;
-  display: flex;
-  align-items: center;
+  border-bottom: 1px solid #444;
+  font-size: 0.9rem;
 }
 
 .pdf-list li:last-child {
   border-bottom: none;
 }
 
-/* Tab styling */
-.tab-container {
-  width: 100%;
-  margin: 0.5rem 0 2rem;
+.results-table-container {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: #333;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.tab-buttons {
-  display: flex;
+.results-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 0.5rem;
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+}
+
+.results-table thead {
+  background-color: #1f1f1f;
+}
+
+.results-table th {
+  padding: 0.75rem 0.5rem;
+  text-align: left;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.results-table td {
+  padding: 0.75rem 0.5rem;
   border-bottom: 1px solid #444;
-  margin-bottom: 1rem;
 }
 
-.tab-button {
-  background: none;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
+.results-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.results-table .row-matched {
+  background-color: rgba(76, 175, 80, 0.1);
+}
+
+.results-table .row-not-matched {
+  background-color: rgba(244, 67, 54, 0.1);
+}
+
+.status-cell {
+  white-space: nowrap;
+}
+
+.status-matched {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.status-not-matched {
+  color: #f44336;
+  font-weight: 500;
+}
+
+.filename {
+  font-family: monospace;
+  word-break: break-all;
+  display: block;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
-  color: #aaa;
-  border-bottom: 2px solid transparent;
+}
+
+.no-filename {
+  color: #888;
+  font-style: italic;
+}
+
+.merge-pdf-container {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.merge-pdf-button {
+  padding: 0.75rem 1.5rem;
+  background-color: #4a51e1;
+  color: white;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
   transition: all 0.2s;
+  font-size: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.tab-button:hover {
+.merge-pdf-button:hover {
+  background-color: #3940c4;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+.merge-pdf-button:disabled {
+  background-color: #666;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.merge-help-text {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #aaa;
+  font-style: italic;
+}
+
+/* Add styles for session management */
+.session-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #333;
+  border-radius: 6px;
+  flex-wrap: wrap;
+}
+
+.session-button {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.new-session-button {
+  background-color: #4caf50;
   color: white;
-  background: none;
-  border-color: transparent;
 }
 
-.tab-button.active {
+.new-session-button:hover {
+  background-color: #388e3c;
+}
+
+.load-session-button {
+  background-color: #2196f3;
   color: white;
-  border-bottom: 2px solid #646cff;
 }
 
-.tab-content {
-  width: 100%;
+.load-session-button:hover {
+  background-color: #1976d2;
+}
+
+.save-session-button {
+  background-color: #ff9800;
+  color: white;
+}
+
+.save-session-button:hover {
+  background-color: #f57c00;
+}
+
+.session-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.session-info {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: #aaa;
+  font-style: italic;
+}
+
+/* Style for the action cell buttons */
+.action-cell {
+  text-align: center;
+}
+
+.override-button,
+.clear-override-button {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.override-button {
+  background-color: #2196f3;
+  color: white;
+}
+
+.override-button:hover {
+  background-color: #1976d2;
+}
+
+.clear-override-button {
+  background-color: #ff9800;
+  color: white;
+}
+
+.clear-override-button:hover {
+  background-color: #f57c00;
+}
+
+/* Style for overridden items */
+.row-overridden {
+  background-color: rgba(255, 152, 0, 0.1);
+}
+
+.row-overridden td {
+  border-color: rgba(255, 152, 0, 0.2);
+}
+
+.status-overridden {
+  display: inline-block;
+  padding: 3px 8px;
+  background-color: rgba(255, 152, 0, 0.2);
+  color: #ff9800;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
 }
 
 @media (prefers-color-scheme: light) {
-  button {
+  .file-input-group {
+    background-color: #f8f8f8;
+  }
+
+  .file-input-group h2 {
+    color: #333;
+  }
+
+  .file-select-button {
     background-color: #4a51e1;
   }
-  button:hover {
+
+  .file-select-button:hover {
     background-color: #3940c4;
   }
+
+  .submit-button {
+    background-color: #16a34a;
+  }
+
+  .submit-button:hover {
+    background-color: #15803d;
+  }
+
+  .file-info {
+    background-color: #eaeaea;
+  }
+
+  .file-info .file-count {
+    color: #666;
+  }
+
   .message {
     background-color: #f0f0f0;
     color: #333;
   }
+
   .close-button {
     color: #333;
   }
+
   .close-button:hover {
     color: #ff3333;
   }
-  .pdf-list li {
-    border-bottom: 1px solid #e0e0e0;
+
+  .results-summary {
+    background-color: #f0f0f0;
   }
-  .tab-buttons {
+
+  .stat-value {
+    color: #3940c4;
+  }
+
+  .stat-label {
+    color: #666;
+  }
+
+  .instructions,
+  .pdf-list {
+    background-color: #f8f8f8;
+  }
+
+  .pdf-container {
+    border-color: #ddd;
+  }
+
+  .pdf-list li {
+    border-bottom-color: #ddd;
+  }
+
+  .results-table-container {
+    background-color: #f8f8f8;
+  }
+
+  .results-table thead {
+    background-color: #eaeaea;
+  }
+
+  .results-table th {
+    color: #333;
+  }
+
+  .results-table td {
     border-bottom: 1px solid #ddd;
   }
-  .tab-button {
-    color: #777;
+
+  .results-table .row-matched {
+    background-color: rgba(76, 175, 80, 0.1);
   }
-  .tab-button:hover {
-    color: #333;
+
+  .results-table .row-not-matched {
+    background-color: rgba(244, 67, 54, 0.1);
   }
-  .tab-button.active {
-    color: #333;
+
+  .status-matched {
+    color: #2e7d32;
   }
-} 
+
+  .status-not-matched {
+    color: #c62828;
+  }
+
+  .no-filename {
+    color: #666;
+  }
+
+  .merge-help-text {
+    color: #666;
+  }
+
+  .session-controls {
+    background-color: #f0f0f0;
+  }
+
+  .session-info {
+    color: #666;
+  }
+
+  .override-button,
+  .clear-override-button {
+    color: white;
+  }
+
+  .row-overridden {
+    background-color: rgba(255, 152, 0, 0.1);
+  }
+
+  .status-overridden {
+    background-color: rgba(255, 152, 0, 0.2);
+    color: #e65100;
+  }
+}
