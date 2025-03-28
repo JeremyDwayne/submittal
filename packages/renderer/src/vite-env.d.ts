@@ -34,6 +34,22 @@ interface PdfMetadata {
     fileName: string;
 }
 
+interface ManifestEntry {
+    remote_url: string;
+    version_hash: string;
+    file_size: number;
+    manufacturer: string;
+    last_updated: string;
+}
+
+interface PdfManifest {
+    metadata: {
+        generated_at: string;
+        version: string;
+    };
+    files: Record<string, ManifestEntry>;
+}
+
 interface ElectronAPI {
     // File system operations
     openFile: (filePath: string) => Promise<boolean>;
@@ -107,6 +123,60 @@ interface ElectronAPI {
             alreadyCached: number;
             failed: number;
         };
+    }>;
+
+    // PDF sync operations
+    syncPdfs: (
+        projectId: string,
+        forceRefresh?: boolean
+    ) => Promise<{
+        success: boolean;
+        syncedFiles: {
+            downloaded: Array<{
+                manufacturer: string;
+                partNumber: string;
+                fileName: string;
+                localPath?: string;
+                remoteUrl?: string;
+                action: 'downloaded' | 'uploaded' | 'up-to-date' | 'failed';
+                error?: string;
+            }>;
+            uploaded: Array<{
+                manufacturer: string;
+                partNumber: string;
+                fileName: string;
+                localPath?: string;
+                remoteUrl?: string;
+                action: 'downloaded' | 'uploaded' | 'up-to-date' | 'failed';
+                error?: string;
+            }>;
+            upToDate: Array<{
+                manufacturer: string;
+                partNumber: string;
+                fileName: string;
+                localPath?: string;
+                remoteUrl?: string;
+                action: 'downloaded' | 'uploaded' | 'up-to-date' | 'failed';
+                error?: string;
+            }>;
+            failed: Array<{
+                manufacturer: string;
+                partNumber: string;
+                fileName: string;
+                localPath?: string;
+                remoteUrl?: string;
+                action: 'downloaded' | 'uploaded' | 'up-to-date' | 'failed';
+                error?: string;
+            }>;
+        };
+        summary: {
+            total: number;
+            downloaded: number;
+            uploaded: number;
+            upToDate: number;
+            failed: number;
+        };
+        error?: string;
     }>;
 
     processBom: (
@@ -234,6 +304,24 @@ interface ElectronAPI {
 
     // External URL handling
     openExternalUrl: (url: string) => Promise<void>;
+
+    // Manifest operations
+    createManifest: (
+        projectName?: string
+    ) => Promise<{
+        success: boolean;
+        url?: string;
+        manifestData?: PdfManifest;
+        error?: string;
+    }>;
+
+    downloadManifest: (
+        url: string
+    ) => Promise<{
+        success: boolean;
+        manifest?: PdfManifest;
+        error?: string;
+    }>;
 }
 
 interface Window {

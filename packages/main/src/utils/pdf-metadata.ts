@@ -1,8 +1,9 @@
-import { promises as fs } from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
-import crypto from 'crypto';
 import { app } from 'electron';
 import isDev from 'electron-is-dev';
+import crypto from 'crypto';
+import { calculatePdfHashOptimized, hasPdfChanged } from './pdf-hash';
 
 /**
  * Metadata for a single PDF file
@@ -102,6 +103,7 @@ export async function updateMetadataCache(cache: PdfCache): Promise<void> {
 
 /**
  * Calculates SHA-256 hash of a file's contents
+ * @deprecated Use calculatePdfHash from pdf-hash.ts instead
  */
 export async function calculateFileHash(filePath: string): Promise<string> {
     try {
@@ -126,8 +128,8 @@ export async function updatePdfMetadata(
         // Get file stats
         const stats = await fs.stat(localPath);
 
-        // Calculate hash
-        const versionHash = await calculateFileHash(localPath);
+        // Calculate hash using the optimized function
+        const versionHash = await calculatePdfHashOptimized(localPath);
 
         // Create metadata object
         const metadata: PdfMetadata = {
@@ -209,11 +211,8 @@ export async function hasFileChanged(localPath: string): Promise<boolean> {
         // If file isn't in cache, it's considered changed
         if (!metadata) return true;
 
-        // Calculate current hash
-        const currentHash = await calculateFileHash(localPath);
-
-        // Compare with stored hash
-        return currentHash !== metadata.versionHash;
+        // Use the hasPdfChanged function from pdf-hash.ts
+        return await hasPdfChanged(localPath, metadata.versionHash);
     } catch (error) {
         console.error(`Error checking if file changed: ${localPath}`, error);
         // If there's an error reading or hashing the file, consider it changed

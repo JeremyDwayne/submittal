@@ -1,0 +1,297 @@
+.manifest-manager {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #2a2a2a;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.manifest-manager h2 {
+    margin-top: 0;
+    color: #fff;
+    font-size: 1.8rem;
+    border-bottom: 1px solid #444;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.manifest-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #333;
+    border-radius: 6px;
+}
+
+.manifest-section h3 {
+    margin-top: 0;
+    color: #fff;
+    font-size: 1.4rem;
+    margin-bottom: 12px;
+}
+
+.input-group {
+    display: flex;
+    gap: 10px;
+}
+
+.input-group input {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: 1rem;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background-color: #444;
+    color: #fff;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: #77b6ff;
+}
+
+.input-group input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.create-button,
+.download-button {
+    padding: 10px 16px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-weight: 500;
+}
+
+.create-button {
+    background-color: #4caf50;
+    color: white;
+}
+
+.create-button:hover:not(:disabled) {
+    background-color: #3e9141;
+}
+
+.download-button {
+    background-color: #2196f3;
+    color: white;
+}
+
+.download-button:hover:not(:disabled) {
+    background-color: #0b7dda;
+}
+
+.create-button:disabled,
+.download-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.success-message {
+    margin: 15px 0;
+    padding: 10px;
+    background-color: #4caf50;
+    color: white;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.manifest-url-section {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #333;
+    border-radius: 6px;
+}
+
+.url-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #222;
+    padding: 10px;
+    border-radius: 4px;
+    word-break: break-all;
+}
+
+.url {
+    font-family: monospace;
+    font-size: 0.9rem;
+    color: #77b6ff;
+}
+
+.url-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.copy-button,
+.open-button {
+    padding: 5px 10px;
+    font-size: 0.9rem;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.copy-button {
+    background-color: #555;
+    color: white;
+}
+
+.copy-button:hover {
+    background-color: #666;
+}
+
+.open-button {
+    background-color: #777;
+    color: white;
+}
+
+.open-button:hover {
+    background-color: #888;
+}
+
+.manifest-data-section {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #333;
+    border-radius: 6px;
+}
+
+.manifest-info {
+    margin-bottom: 15px;
+}
+
+.manifest-info p {
+    margin: 5px 0;
+    font-size: 0.95rem;
+    color: #ddd;
+}
+
+.manifest-files-preview h4 {
+    margin: 10px 0;
+    color: #fff;
+    font-size: 1.1rem;
+}
+
+.manifest-files-preview ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    background-color: #222;
+    border-radius: 4px;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.manifest-files-preview li {
+    padding: 10px;
+    border-bottom: 1px solid #444;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.manifest-files-preview li:last-child {
+    border-bottom: none;
+}
+
+.manifest-files-preview strong {
+    color: #fff;
+    flex: 1;
+    font-size: 0.9rem;
+}
+
+.manifest-files-preview .manufacturer {
+    color: #aaa;
+    font-size: 0.85rem;
+    flex: 1;
+}
+
+.manifest-files-preview .hash {
+    color: #77b6ff;
+    font-family: monospace;
+    font-size: 0.8rem;
+}
+
+.manifest-files-preview .more-files {
+    color: #999;
+    font-style: italic;
+    text-align: center;
+}
+
+.view-raw-json {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.view-raw-button {
+    padding: 8px 16px;
+    background-color: #555;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.view-raw-button:hover {
+    background-color: #666;
+}
+
+@media (prefers-color-scheme: light) {
+    .manifest-manager {
+        background-color: #f5f5f5;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .manifest-manager h2 {
+        color: #333;
+        border-bottom-color: #ddd;
+    }
+
+    .manifest-section {
+        background-color: #fff;
+    }
+
+    .manifest-section h3 {
+        color: #333;
+    }
+
+    .input-group input {
+        border-color: #ddd;
+        background-color: #f9f9f9;
+        color: #333;
+    }
+
+    .url-display {
+        background-color: #f0f0f0;
+    }
+
+    .url {
+        color: #0066cc;
+    }
+
+    .manifest-info p {
+        color: #555;
+    }
+
+    .manifest-files-preview ul {
+        background-color: #f0f0f0;
+    }
+
+    .manifest-files-preview li {
+        border-bottom-color: #ddd;
+    }
+
+    .manifest-files-preview strong {
+        color: #333;
+    }
+
+    .manifest-files-preview .hash {
+        color: #0066cc;
+    }
+}

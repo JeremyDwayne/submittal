@@ -1,0 +1,460 @@
+.sync-status-manager {
+    background-color: #1a1a1a;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    margin-bottom: 24px;
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.sync-status-manager .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+}
+
+.sync-status-manager h2 {
+    font-size: 1.5rem;
+    margin: 0;
+    color: #eee;
+}
+
+.sync-status-manager .actions {
+    display: flex;
+    gap: 10px;
+}
+
+.sync-status-manager button {
+    background-color: #333;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s ease;
+}
+
+.sync-status-manager button:hover:not(:disabled) {
+    background-color: #444;
+}
+
+.sync-status-manager button:disabled {
+    background-color: #222;
+    color: #666;
+    cursor: not-allowed;
+}
+
+.sync-status-manager .sync-all-btn {
+    background-color: #2563eb;
+}
+
+.sync-status-manager .sync-all-btn:hover:not(:disabled) {
+    background-color: #1d4ed8;
+}
+
+.sync-status-manager .full-sync-btn {
+    background-color: #7c3aed;
+    /* Purple color to differentiate */
+}
+
+.sync-status-manager .full-sync-btn:hover:not(:disabled) {
+    background-color: #6d28d9;
+}
+
+.sync-status-manager .refresh-btn {
+    background-color: #374151;
+}
+
+.sync-status-manager .message {
+    background-color: #27272a;
+    border-radius: 4px;
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    color: #f9fafb;
+    font-size: 0.95rem;
+}
+
+.sync-status-manager .loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+    color: #ccc;
+    font-size: 1.1rem;
+}
+
+.sync-stats {
+    display: flex;
+    justify-content: space-between;
+    background-color: #27272a;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.sync-stats .stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    min-width: 100px;
+}
+
+.sync-stats .stat-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.sync-stats .stat:nth-child(1) .stat-value {
+    color: #10b981;
+    /* green for up-to-date */
+}
+
+.sync-stats .stat:nth-child(2) .stat-value {
+    color: #3b82f6;
+    /* blue for needs download */
+}
+
+.sync-stats .stat:nth-child(3) .stat-value {
+    color: #f59e0b;
+    /* yellow for needs upload */
+}
+
+.sync-stats .stat:nth-child(4) .stat-value {
+    color: #ef4444;
+    /* red for missing */
+}
+
+.sync-stats .stat-label {
+    font-size: 0.85rem;
+    color: #aaa;
+    text-align: center;
+}
+
+.parts-table-container {
+    background-color: #27272a;
+    border-radius: 6px;
+    padding: 8px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+}
+
+.parts-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    table-layout: fixed;
+}
+
+.parts-table th {
+    padding: 12px 15px;
+    background-color: #333;
+    color: #eee;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-bottom: 2px solid #444;
+}
+
+.parts-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #444;
+    color: #e5e5e5;
+}
+
+.parts-table tr:last-child td {
+    border-bottom: none;
+}
+
+.parts-table th:first-child,
+.parts-table td:first-child {
+    padding-left: 20px;
+}
+
+.parts-table th:last-child,
+.parts-table td:last-child {
+    padding-right: 20px;
+}
+
+.parts-table tr.status-needs-download {
+    background-color: rgba(59, 130, 246, 0.1);
+}
+
+.parts-table tr.status-needs-upload {
+    background-color: rgba(245, 158, 11, 0.1);
+}
+
+.parts-table tr.status-missing {
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+.parts-table tr.status-up-to-date {
+    background-color: rgba(16, 185, 129, 0.1);
+}
+
+.parts-table .status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.parts-table .status-icon {
+    font-size: 1.1rem;
+}
+
+.parts-table .actions {
+    display: flex;
+    gap: 8px;
+}
+
+.parts-table .action-btn {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.parts-table .download-btn {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.parts-table .download-btn:hover:not(:disabled) {
+    background-color: #2563eb;
+}
+
+.parts-table .upload-btn {
+    background-color: #f59e0b;
+    color: white;
+}
+
+.parts-table .upload-btn:hover:not(:disabled) {
+    background-color: #d97706;
+}
+
+.parts-table .view-btn {
+    background-color: #4b5563;
+    color: white;
+}
+
+.parts-table .view-btn:hover:not(:disabled) {
+    background-color: #374151;
+}
+
+.manifest-info {
+    background-color: #27272a;
+    border-radius: 6px;
+    padding: 16px;
+    margin-top: 24px;
+}
+
+.manifest-info h3 {
+    color: #eee;
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 1.1rem;
+}
+
+.manifest-url {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background-color: #1a1a1a;
+    border-radius: 4px;
+    padding: 10px 16px;
+}
+
+.manifest-url .url {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #3b82f6;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.manifest-url .copy-btn {
+    background-color: #374151;
+    flex-shrink: 0;
+}
+
+.no-parts {
+    color: #aaa;
+    text-align: center;
+    padding: 40px 0;
+    font-style: italic;
+}
+
+/* Light mode */
+@media (prefers-color-scheme: light) {
+    .sync-status-manager {
+        background-color: #f9fafb;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .sync-status-manager .header {
+        border-bottom-color: #e5e7eb;
+    }
+
+    .sync-status-manager h2 {
+        color: #111827;
+    }
+
+    .sync-status-manager button {
+        background-color: #e5e7eb;
+        color: #374151;
+    }
+
+    .sync-status-manager button:hover:not(:disabled) {
+        background-color: #d1d5db;
+    }
+
+    .sync-status-manager button:disabled {
+        background-color: #f3f4f6;
+        color: #9ca3af;
+    }
+
+    .sync-status-manager .sync-all-btn {
+        background-color: #3b82f6;
+        color: white;
+    }
+
+    .sync-status-manager .sync-all-btn:hover:not(:disabled) {
+        background-color: #2563eb;
+    }
+
+    .sync-status-manager .full-sync-btn {
+        background-color: #8b5cf6;
+        color: white;
+    }
+
+    .sync-status-manager .full-sync-btn:hover:not(:disabled) {
+        background-color: #7c3aed;
+    }
+
+    .sync-status-manager .refresh-btn {
+        background-color: #6b7280;
+        color: white;
+    }
+
+    .sync-status-manager .message {
+        background-color: #f3f4f6;
+        color: #1f2937;
+    }
+
+    .sync-status-manager .loading {
+        color: #4b5563;
+    }
+
+    .sync-stats {
+        background-color: #f3f4f6;
+    }
+
+    .sync-stats .stat-label {
+        color: #4b5563;
+    }
+
+    .parts-table-container {
+        background-color: #fff;
+        border: 1px solid #e5e7eb;
+    }
+
+    .parts-table th {
+        background-color: #f3f4f6;
+        color: #1f2937;
+        border-bottom-color: #e5e7eb;
+    }
+
+    .parts-table td {
+        border-bottom-color: #e5e7eb;
+        color: #374151;
+    }
+
+    .parts-table tr.status-needs-download {
+        background-color: rgba(59, 130, 246, 0.05);
+    }
+
+    .parts-table tr.status-needs-upload {
+        background-color: rgba(245, 158, 11, 0.05);
+    }
+
+    .parts-table tr.status-missing {
+        background-color: rgba(239, 68, 68, 0.05);
+    }
+
+    .parts-table tr.status-up-to-date {
+        background-color: rgba(16, 185, 129, 0.05);
+    }
+
+    .manifest-info {
+        background-color: #f3f4f6;
+    }
+
+    .manifest-info h3 {
+        color: #111827;
+    }
+
+    .manifest-url {
+        background-color: #fff;
+        border: 1px solid #e5e7eb;
+    }
+
+    .no-parts {
+        color: #6b7280;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .sync-stats {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .sync-stats .stat {
+        flex: 1 0 calc(50% - 10px);
+        margin-bottom: 10px;
+    }
+
+    .sync-status-manager .header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .sync-status-manager .actions {
+        margin-top: 16px;
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .sync-status-manager .actions .full-sync-btn {
+        grid-column: span 2;
+        /* Make the full sync button span full width */
+    }
+
+    .manifest-url {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .manifest-url .url {
+        margin-bottom: 8px;
+        width: 100%;
+    }
+
+    .manifest-url .copy-btn {
+        width: 100%;
+    }
+}

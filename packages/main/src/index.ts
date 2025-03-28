@@ -19,6 +19,8 @@ import {
   downloadPdfFromUploadThing,
   downloadMultiplePdfs
 } from './utils/pdf-downloader';
+import { syncPdfs } from './utils/sync-service';
+import { createAndUploadManifest, downloadManifest } from './utils/manifest-service';
 
 // Add session type definition
 interface SessionData {
@@ -164,6 +166,9 @@ function registerIpcHandlers() {
   ipcMain.handle('pdf:download', handleDownloadPdf);
   ipcMain.handle('pdfs:download-multiple', handleDownloadMultiplePdfs);
 
+  // PDF syncing
+  ipcMain.handle('pdfs:sync', handleSyncPdfs);
+
   // Session management
   ipcMain.handle('session:save', handleSaveSession);
   ipcMain.handle('session:load', handleLoadSession);
@@ -183,6 +188,10 @@ function registerIpcHandlers() {
   ipcMain.handle('url:open-external', async (_event: IpcMainInvokeEvent, url: string) => {
     return shell.openExternal(url);
   });
+
+  // Manifest related operations
+  ipcMain.handle('manifest:create', handleCreateManifest);
+  ipcMain.handle('manifest:download', handleDownloadManifest);
 }
 
 app.whenReady().then(createWindow);
@@ -775,6 +784,84 @@ async function handleDownloadMultiplePdfs(
     return await downloadMultiplePdfs(items, forceDownload);
   } catch (error) {
     console.error('Error downloading multiple PDFs:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles syncing PDFs
+ */
+async function handleSyncPdfs(
+  _event: IpcMainInvokeEvent,
+  projectId: string,
+  forceRefresh: boolean = false
+) {
+  try {
+    if (!projectId) {
+      return {
+        success: false,
+        error: 'Project ID is required'
+      };
+    }
+
+    const result = await syncPdfs(projectId, forceRefresh);
+    return result;
+  } catch (error) {
+    console.error('Error syncing PDFs:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Creates and uploads a manifest file
+ */
+async function handleCreateManifest(_event: IpcMainInvokeEvent, projectName?: string) {
+  try {
+    const name = projectName || 'manifest';
+    const result = await createAndUploadManifest(name);
+
+    return {
+      success: result.success,
+      url: result.url,
+      manifestData: result.manifestData,
+      error: result.error
+    };
+  } catch (error) {
+    console.error('Error creating manifest:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Downloads and parses a manifest from a URL
+ */
+async function handleDownloadManifest(_event: IpcMainInvokeEvent, url: string) {
+  try {
+    if (!url) {
+      return {
+        success: false,
+        error: 'URL is required'
+      };
+    }
+
+    const result = await downloadManifest(url);
+
+    return {
+      success: result.success,
+      manifest: result.manifest,
+      error: result.error
+    };
+  } catch (error) {
+    console.error('Error downloading manifest:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error)

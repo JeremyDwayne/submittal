@@ -86,6 +86,60 @@ contextBridge.exposeInMainWorld('electron', {
     };
   }> => ipcRenderer.invoke('pdfs:download-multiple', items, forceDownload),
 
+  // PDF sync operations
+  syncPdfs: (
+    projectId: string,
+    forceRefresh?: boolean
+  ): Promise<{
+    success: boolean;
+    syncedFiles: {
+      downloaded: Array<{
+        manufacturer: string;
+        partNumber: string;
+        fileName: string;
+        localPath?: string;
+        remoteUrl?: string;
+        action: 'downloaded' | 'uploaded' | 'up-to-date' | 'failed';
+        error?: string;
+      }>;
+      uploaded: Array<{
+        manufacturer: string;
+        partNumber: string;
+        fileName: string;
+        localPath?: string;
+        remoteUrl?: string;
+        action: 'downloaded' | 'uploaded' | 'up-to-date' | 'failed';
+        error?: string;
+      }>;
+      upToDate: Array<{
+        manufacturer: string;
+        partNumber: string;
+        fileName: string;
+        localPath?: string;
+        remoteUrl?: string;
+        action: 'downloaded' | 'uploaded' | 'up-to-date' | 'failed';
+        error?: string;
+      }>;
+      failed: Array<{
+        manufacturer: string;
+        partNumber: string;
+        fileName: string;
+        localPath?: string;
+        remoteUrl?: string;
+        action: 'downloaded' | 'uploaded' | 'up-to-date' | 'failed';
+        error?: string;
+      }>;
+    };
+    summary: {
+      total: number;
+      downloaded: number;
+      uploaded: number;
+      upToDate: number;
+      failed: number;
+    };
+    error?: string;
+  }> => ipcRenderer.invoke('pdfs:sync', projectId, forceRefresh),
+
   processBom: (
     csvFilePath: string,
     pdfDirectory: string
@@ -282,6 +336,48 @@ contextBridge.exposeInMainWorld('electron', {
     }>;
     error?: string;
   }> => ipcRenderer.invoke('pdf:list-metadata', options),
+
+  // Manifest operations
+  createManifest: (
+    projectName?: string
+  ): Promise<{
+    success: boolean;
+    url?: string;
+    manifestData?: {
+      metadata: {
+        generated_at: string;
+        version: string;
+      };
+      files: Record<string, {
+        remote_url: string;
+        version_hash: string;
+        file_size: number;
+        manufacturer: string;
+        last_updated: string;
+      }>;
+    };
+    error?: string;
+  }> => ipcRenderer.invoke('manifest:create', projectName),
+
+  downloadManifest: (
+    url: string
+  ): Promise<{
+    success: boolean;
+    manifest?: {
+      metadata: {
+        generated_at: string;
+        version: string;
+      };
+      files: Record<string, {
+        remote_url: string;
+        version_hash: string;
+        file_size: number;
+        manufacturer: string;
+        last_updated: string;
+      }>;
+    };
+    error?: string;
+  }> => ipcRenderer.invoke('manifest:download', url),
 
   // External URL handling
   openExternalUrl: (url: string): Promise<void> => ipcRenderer.invoke('url:open-external', url),

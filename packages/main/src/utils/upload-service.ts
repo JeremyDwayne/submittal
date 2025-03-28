@@ -33,7 +33,7 @@ const UPLOADTHING_URL = 'https://uploadthing.com/api/uploadFiles';
 /**
  * Uploads a single file to UploadThing
  */
-async function uploadSingleFile(
+export async function uploadSingleFile(
     filePath: string,
     manufacturer?: string,
     partNumber?: string
