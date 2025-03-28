@@ -1,60 +1,134 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const isDev = require('electron-is-dev');
 const fs = require('fs/promises');
 
 // Import type definitions
 import type { IpcMainInvokeEvent } from 'electron';
+import { scanPdfDirectory, processBomEntry, processBomEntries } from './utils/pdf-service';
 
 let mainWindow: typeof BrowserWindow | null = null;
 
 // Create data directory if it doesn't exist
 const createDataDir = async (): Promise<string> => {
-  const dataPath = isDev
-    ? path.join(__dirname, '../../..', 'data')
-    : path.join(process.resourcesPath, 'data');
+  const userDataPath = isDev
+    ? path.join(__dirname, '../../../..', 'data')
+    : path.join(app.getPath('userData'), 'data');
 
   try {
-    await fs.access(dataPath);
+    await fs.mkdir(userDataPath, { recursive: true });
+    return userDataPath;
   } catch (error) {
-    await fs.mkdir(dataPath, { recursive: true });
+    console.error('Error creating data directory:', error);
+    throw error;
   }
-
-  return dataPath;
 };
 
 const createWindow = async (): Promise<void> => {
-  // Create data directory but don't need to use the return value
-  await createDataDir();
-
-  // Get the correct path for the preload script
-  const preloadPath = path.join(__dirname, 'preload.js');
-  console.log('Preload script path:', preloadPath);
+  const dataDir = await createDataDir();
+  console.log('Data directory:', dataDir);
 
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: preloadPath,
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
 
-  // Load the appropriate URL based on development or production mode
   if (isDev) {
-    console.log('Running in development mode, loading from localhost:3000');
-    mainWindow.loadURL('http://localhost:3000');
+    await mainWindow.loadURL('http://localhost:3000');
     mainWindow.webContents.openDevTools();
   } else {
-    console.log('Running in production mode');
-    mainWindow.loadFile(path.join(__dirname, '../../renderer/dist/index.html'));
+    await mainWindow.loadFile(path.join(__dirname, '../../renderer/dist/index.html'));
   }
 
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  // Register IPC handlers
+  registerIpcHandlers();
 };
+
+// Register all IPC handlers
+function registerIpcHandlers() {
+  // File operations
+  ipcMain.handle('file:open', async (_event: IpcMainInvokeEvent, filePath: string) => {
+    return shell.openPath(filePath);
+  });
+
+  ipcMain.handle('file:select', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'All Files', extensions: ['*'] }]
+    });
+
+    if (canceled || filePaths.length === 0) {
+      return null;
+    }
+
+    return filePaths[0];
+  });
+
+  ipcMain.handle('files:select', async (_event: IpcMainInvokeEvent, fileTypeFilter?: string) => {
+    let filters = [];
+
+    if (fileTypeFilter) {
+      const extension = fileTypeFilter.startsWith('.') ? fileTypeFilter.slice(1) : fileTypeFilter;
+      filters = [
+        { name: `${extension.toUpperCase()} Files`, extensions: [extension] },
+        { name: 'All Files', extensions: ['*'] }
+      ];
+    } else {
+      filters = [{ name: 'All Files', extensions: ['*'] }];
+    }
+
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openFile', 'multiSelections'],
+      filters
+    });
+
+    if (canceled || filePaths.length === 0) {
+      return null;
+    }
+
+    return filePaths;
+  });
+
+  ipcMain.handle('file:read', async (_event: IpcMainInvokeEvent, filePath: string) => {
+    try {
+      return await fs.readFile(filePath, 'utf-8');
+    } catch (error) {
+      console.error('Error reading file:', error);
+      return null;
+    }
+  });
+
+  ipcMain.handle('folder:select', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openDirectory']
+    });
+
+    if (canceled || filePaths.length === 0) {
+      return null;
+    }
+
+    return filePaths[0];
+  });
+
+  // PDF/BOM operations
+  ipcMain.handle('bom:process', handleProcessBom);
+  ipcMain.handle('pdfs:scan', handleScanPdfs);
+  ipcMain.handle('pdf:find-match', handleFindPdfMatch);
+
+  // External URL handling
+  ipcMain.handle('url:open-external', async (_event: IpcMainInvokeEvent, url: string) => {
+    return shell.openExternal(url);
+  });
+}
 
 app.whenReady().then(createWindow);
 
@@ -70,75 +144,143 @@ app.on('activate', () => {
   }
 });
 
-// IPC handlers
-ipcMain.handle('dialog:open', async (_event: IpcMainInvokeEvent): Promise<string[]> => {
-  if (!mainWindow) return [];
-
-  const { filePaths } = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openFile', 'multiSelections'],
-    filters: [{ name: 'PDF Documents', extensions: ['pdf'] }],
-  });
-
-  return filePaths;
-});
-
-ipcMain.handle('pdf:save', async (
-  _event: IpcMainInvokeEvent,
-  { pdfPath, fileName }: { pdfPath: string; fileName: string }
-): Promise<{ success: boolean; path?: string; error?: string }> => {
+// Handlers for PDF matching
+/**
+ * Handles scanning a directory for PDFs
+ */
+async function handleScanPdfs(_event: IpcMainInvokeEvent, pdfDirectory: string) {
   try {
-    const dataPath = await createDataDir();
-    const targetPath = path.join(dataPath, fileName);
-
-    const pdfData = await fs.readFile(pdfPath);
-    await fs.writeFile(targetPath, pdfData);
-
-    return { success: true, path: targetPath };
-  } catch (error) {
-    console.error('Error saving PDF:', error);
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-ipcMain.handle('pdf:list', async (_event: IpcMainInvokeEvent): Promise<{
-  success: boolean;
-  files?: string[];
-  error?: string;
-}> => {
-  try {
-    const dataPath = await createDataDir();
-    const files = await fs.readdir(dataPath);
-    const pdfFiles = files.filter((file: string) => file.endsWith('.pdf'));
-
-    return { success: true, files: pdfFiles };
-  } catch (error) {
-    console.error('Error listing PDFs:', error);
-    return { success: false, error: (error as Error).message };
-  }
-});
-
-// CSV processing handler
-ipcMain.handle('csv:process', async (
-  _event: IpcMainInvokeEvent,
-  { parts }: { parts: Array<{ brand: string; part_number: string }> }
-): Promise<{ success: boolean; message?: string; error?: string }> => {
-  try {
-    console.log(`Received ${parts.length} parts for processing`);
-
-    // Here you would implement the logic to fetch cut sheets for each part
-    // This is a placeholder for the actual implementation
-    for (const part of parts) {
-      console.log(`Fetching cut sheet for ${part.brand} ${part.part_number}`);
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 100));
+    if (!pdfDirectory) {
+      return {
+        success: false,
+        error: 'No directory provided'
+      };
     }
+
+    const pdfFiles = await scanPdfDirectory(pdfDirectory);
 
     return {
       success: true,
-      message: `Started processing ${parts.length} parts`
+      pdfFiles,
+      directory: pdfDirectory
     };
   } catch (error) {
-    console.error('Error processing CSV data:', error);
-    return { success: false, error: (error as Error).message };
+    console.error('Error scanning PDFs:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
   }
-}); 
+}
+
+/**
+ * Handles finding a PDF match for a single manufacturer/part number
+ */
+async function handleFindPdfMatch(
+  _event: IpcMainInvokeEvent,
+  pdfDirectory: string,
+  manufacturer: string,
+  partNumber: string
+) {
+  try {
+    if (!pdfDirectory || !manufacturer || !partNumber) {
+      return {
+        success: false,
+        error: 'Missing required parameters'
+      };
+    }
+
+    const result = await processBomEntry(pdfDirectory, manufacturer, partNumber);
+
+    return {
+      success: true,
+      ...result
+    };
+  } catch (error) {
+    console.error('Error finding PDF match:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles processing a BOM CSV file
+ */
+async function handleProcessBom(_event: IpcMainInvokeEvent, csvFilePath: string, pdfDirectory: string) {
+  try {
+    if (!csvFilePath || !pdfDirectory) {
+      return {
+        success: false,
+        error: 'Missing required parameters'
+      };
+    }
+
+    // Read the CSV file
+    const csvContent = await fs.readFile(csvFilePath, 'utf-8');
+
+    // Parse CSV content
+    const lines = csvContent.split('\n');
+
+    // Find the header row and identify column indexes
+    const headerLine = lines[0].toLowerCase();
+    const headers = headerLine.split(',').map((h: string) => h.trim());
+
+    const manufacturerIndex = headers.findIndex((h: string) =>
+      h === 'manufacturer' || h === 'brand' || h === 'vendor'
+    );
+
+    const partNumberIndex = headers.findIndex((h: string) =>
+      h === 'part_number' || h === 'partnumber' || h === 'part number' || h === 'part no' || h === 'model'
+    );
+
+    if (manufacturerIndex === -1 || partNumberIndex === -1) {
+      return {
+        success: false,
+        error: 'CSV must contain columns for manufacturer and part number'
+      };
+    }
+
+    // Process rows (skip header)
+    const entries = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue; // Skip empty lines
+
+      const columns = line.split(',').map((c: string) => c.trim());
+
+      if (columns.length <= Math.max(manufacturerIndex, partNumberIndex)) {
+        continue; // Skip invalid rows
+      }
+
+      const manufacturer = columns[manufacturerIndex];
+      const partNumber = columns[partNumberIndex];
+
+      if (manufacturer && partNumber) {
+        entries.push({ manufacturer, partNumber });
+      }
+    }
+
+    if (entries.length === 0) {
+      return {
+        success: false,
+        error: 'No valid entries found in the CSV file'
+      };
+    }
+
+    // Process BOM entries against PDF directory
+    const results = await processBomEntries(pdfDirectory, entries);
+
+    return {
+      success: true,
+      ...results
+    };
+  } catch (error) {
+    console.error('Error processing BOM CSV:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+} 

@@ -1,88 +1,75 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import CsvUploader from './components/CsvUploader';
-import ManualPartSearch from './components/ManualPartSearch';
 import './App.css';
 
 function App() {
   const [pdfFiles, setPdfFiles] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('manual'); // 'manual' or 'csv'
+  const [pdfDirectory, setPdfDirectory] = useState<string | null>(null);
 
-  // Load PDF list on mount
-  useEffect(() => {
-    loadPDFs();
-  }, []);
+  const selectPdfDirectory = async () => {
+    try {
+      const directory = await window.electron.selectFolder();
+      if (directory) {
+        setPdfDirectory(directory);
+        scanPdfDirectory(directory);
+      }
+    } catch (error) {
+      console.error('Error selecting directory:', error);
+      setMessage(`Error: ${(error as Error).message}`);
+    }
+  };
 
-  const loadPDFs = async () => {
+  const scanPdfDirectory = async (directory: string) => {
     setIsLoading(true);
     try {
-      const result = await window.electron.listPDFs();
-      if (result.success && result.files) {
-        setPdfFiles(result.files);
+      const result = await window.electron.scanPdfDirectory(directory);
+
+      if (result.success && result.pdfFiles) {
+        // Just get the filenames
+        const fileNames = result.pdfFiles.map(pdf => pdf.fileName);
+        setPdfFiles(fileNames);
+        setMessage(`Found ${fileNames.length} PDF files in directory`);
       } else {
-        setMessage(`Error loading PDFs: ${result.error}`);
+        setMessage(result.error || 'Error scanning directory');
       }
     } catch (error) {
-      console.error('Failed to load PDFs:', error);
+      console.error('Error scanning directory:', error);
       setMessage(`Error: ${(error as Error).message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleOpenFile = async () => {
-    try {
-      const filePaths = await window.electron.openFileDialog();
-      if (filePaths.length === 0) return;
-
-      setIsLoading(true);
-      setMessage('Saving selected PDFs...');
-
-      for (const filePath of filePaths) {
-        const fileName = filePath.split('/').pop() || 'unknown.pdf';
-        const result = await window.electron.savePDF(filePath, fileName);
-        
-        if (!result.success) {
-          console.error(`Failed to save ${fileName}:`, result.error);
-          setMessage(`Error saving ${fileName}: ${result.error}`);
-        }
-      }
-
-      await loadPDFs();
-      setMessage('PDFs successfully imported!');
-    } catch (error) {
-      console.error('Error importing PDFs:', error);
-      setMessage(`Error: ${(error as Error).message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleUploadComplete = (msg: string) => {
+  const handleMessage = (msg: string) => {
     setMessage(msg);
-    // Refresh the PDF list after processing
-    loadPDFs();
   };
 
-  const handleUploadError = (error: string) => {
+  const handleError = (error: string) => {
     setMessage(error);
   };
 
   return (
     <div className="app">
       <h1>Submittal Manager</h1>
-      
+
       <div className="card">
-        <button onClick={handleOpenFile} disabled={isLoading}>
-          {isLoading ? 'Processing...' : 'Import PDF Files'}
+        <button onClick={selectPdfDirectory} disabled={isLoading}>
+          {isLoading ? 'Processing...' : pdfDirectory ? 'Change PDF Directory' : 'Select PDF Directory'}
         </button>
-        
+
+        {pdfDirectory && (
+          <div className="directory-info">
+            <p>PDF Directory: {pdfDirectory}</p>
+          </div>
+        )}
+
         {message && (
           <div className="message">
             {message}
-            <button 
-              className="close-button" 
+            <button
+              className="close-button"
               onClick={() => setMessage(null)}
             >
               ×
@@ -91,47 +78,25 @@ function App() {
         )}
       </div>
 
-      <div className="tab-container">
-        <div className="tab-buttons">
-          <button 
-            className={`tab-button ${activeTab === 'manual' ? 'active' : ''}`} 
-            onClick={() => setActiveTab('manual')}
-          >
-            Manual Search
-          </button>
-          <button 
-            className={`tab-button ${activeTab === 'csv' ? 'active' : ''}`} 
-            onClick={() => setActiveTab('csv')}
-          >
-            CSV Upload
-          </button>
-        </div>
-        
-        <div className="tab-content">
-          {activeTab === 'manual' ? (
-            <ManualPartSearch 
-              onSearchComplete={handleUploadComplete}
-              onError={handleUploadError}
-            />
-          ) : (
-            <CsvUploader 
-              onUploadComplete={handleUploadComplete}
-              onError={handleUploadError}
-            />
-          )}
-        </div>
+      <div className="tab-content">
+        <CsvUploader
+          onUploadComplete={handleMessage}
+          onError={handleError}
+          pdfDirectory={pdfDirectory}
+          onSelectPdfDirectory={selectPdfDirectory}
+        />
       </div>
 
       <div className="pdf-list">
-        <h2>Saved PDFs</h2>
+        <h2>Available PDFs</h2>
         {pdfFiles.length > 0 ? (
           <ul>
-            {pdfFiles.map((file) => (
-              <li key={file}>{file}</li>
+            {pdfFiles.map((file, index) => (
+              <li key={index}>{file}</li>
             ))}
           </ul>
         ) : (
-          <p>No PDFs found. Import some files to get started.</p>
+          <p>{pdfDirectory ? 'No PDFs found in selected directory.' : 'No directory selected. Please select a PDF directory to get started.'}</p>
         )}
       </div>
     </div>
