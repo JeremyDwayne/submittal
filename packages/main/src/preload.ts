@@ -64,12 +64,66 @@ contextBridge.exposeInMainWorld('electron', {
       manufacturer: string;
       partNumber: string;
       fileName?: string;
-    }>
+    }>,
+    outputDirectory?: string
   ): Promise<{
     success: boolean;
     outputPath?: string;
     error?: string;
-  }> => ipcRenderer.invoke('pdf:merge', pdfPaths, productInfo),
+  }> => ipcRenderer.invoke('pdf:merge', pdfPaths, productInfo, outputDirectory),
+
+  // Session management
+  saveSession: (
+    sessionData: {
+      pdfDirectory: string;
+      csvFilePath: string;
+      outputDirectory?: string;
+      results?: {
+        total: number;
+        matched: number;
+        notFound: number;
+      };
+      detailedResults?: Array<{
+        manufacturer: string;
+        partNumber: string;
+        matched: boolean;
+        pdfPath?: string;
+        fileName?: string;
+        overridden?: boolean;
+      }>;
+      createdAt: string;
+      updatedAt: string;
+    }
+  ): Promise<{
+    success: boolean;
+    filePath?: string;
+    error?: string;
+  }> => ipcRenderer.invoke('session:save', sessionData),
+
+  loadSession: (): Promise<{
+    success: boolean;
+    sessionData?: {
+      pdfDirectory: string;
+      csvFilePath: string;
+      outputDirectory?: string;
+      results?: {
+        total: number;
+        matched: number;
+        notFound: number;
+      };
+      detailedResults?: Array<{
+        manufacturer: string;
+        partNumber: string;
+        matched: boolean;
+        pdfPath?: string;
+        fileName?: string;
+        overridden?: boolean;
+      }>;
+      createdAt: string;
+      updatedAt: string;
+    };
+    error?: string;
+  }> => ipcRenderer.invoke('session:load'),
 
   // External URL handling
   openExternalUrl: (url: string): Promise<void> => ipcRenderer.invoke('url:open-external', url),

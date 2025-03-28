@@ -1,5 +1,27 @@
 /// <reference types="vite/client" />
 
+// Define session data interface
+interface SessionData {
+    pdfDirectory: string;
+    csvFilePath: string;
+    outputDirectory?: string;
+    results?: {
+        total: number;
+        matched: number;
+        notFound: number;
+    };
+    detailedResults?: Array<{
+        manufacturer: string;
+        partNumber: string;
+        matched: boolean;
+        pdfPath?: string;
+        fileName?: string;
+        overridden?: boolean;
+    }>;
+    createdAt: string;
+    updatedAt: string;
+}
+
 interface ElectronAPI {
     // File system operations
     openFile: (filePath: string) => Promise<boolean>;
@@ -62,10 +84,26 @@ interface ElectronAPI {
             manufacturer: string;
             partNumber: string;
             fileName?: string;
-        }>
+        }>,
+        outputDirectory?: string
     ) => Promise<{
         success: boolean;
         outputPath?: string;
+        error?: string;
+    }>;
+
+    // Session management
+    saveSession: (
+        sessionData: SessionData
+    ) => Promise<{
+        success: boolean;
+        filePath?: string;
+        error?: string;
+    }>;
+
+    loadSession: () => Promise<{
+        success: boolean;
+        sessionData?: SessionData;
         error?: string;
     }>;
 

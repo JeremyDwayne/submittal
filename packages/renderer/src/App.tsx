@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
 
+// Extend MatchResult to support manual overrides
 type MatchResult = {
   manufacturer: string;
   partNumber: string;
   matched: boolean;
   pdfPath?: string;
   fileName?: string;
+  overridden?: boolean; // Flag to indicate manually overridden matches
 };
 
 type ResultSummary = {
@@ -24,12 +26,23 @@ function App() {
   const [results, setResults] = useState<ResultSummary | null>(null);
   const [detailedResults, setDetailedResults] = useState<MatchResult[]>([]);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [outputDirectory, setOutputDirectory] = useState<string | null>(null);
+  const [sessionFile, setSessionFile] = useState<string | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Track changes to determine if session needs saving
+  useEffect(() => {
+    if (detailedResults.length > 0) {
+      setHasChanges(true);
+    }
+  }, [detailedResults, pdfDirectory, csvFilePath, outputDirectory]);
 
   const selectPdfDirectory = async () => {
     try {
       const directory = await window.electron.selectFolder();
       if (directory) {
         setPdfDirectory(directory);
+        setHasChanges(true);
         scanPdfDirectory(directory);
       }
     } catch (error) {
@@ -43,12 +56,35 @@ function App() {
       const filePath = await window.electron.selectFile('.csv');
       if (filePath) {
         setCsvFilePath(filePath);
+        setHasChanges(true);
         setMessage(`CSV file selected: ${filePath.split('/').pop()}`);
       }
     } catch (error) {
       console.error('Error selecting CSV file:', error);
       setMessage(`Error: ${(error as Error).message}`);
     }
+  };
+
+  const selectOutputDirectory = async () => {
+    try {
+      const directory = await window.electron.selectFolder();
+      if (directory) {
+        setOutputDirectory(directory);
+        setHasChanges(true);
+        const fileName = generateDefaultFileName();
+        const fullPath = `${directory}/${fileName}`;
+        setMessage(`Output location selected: ${fullPath}`);
+      }
+    } catch (error) {
+      console.error('Error selecting output directory:', error);
+      setMessage(`Error: ${(error as Error).message}`);
+    }
+  };
+
+  const generateDefaultFileName = () => {
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+    return `Submittal-${dateStr}.pdf`;
   };
 
   const processBom = async () => {
@@ -65,6 +101,7 @@ function App() {
     setIsLoading(true);
     setResults(null);
     setDetailedResults([]);
+    setHasChanges(true);
 
     try {
       const result = await window.electron.processBom(csvFilePath, pdfDirectory);
@@ -140,8 +177,12 @@ function App() {
         fileName: result.fileName
       }));
 
-      // Call the main process to merge PDFs
-      const result = await window.electron.createMergedPdf(pdfPaths, productInfo);
+      // Call the main process to merge PDFs, passing the user-selected output directory if available
+      const result = await window.electron.createMergedPdf(
+        pdfPaths,
+        productInfo,
+        outputDirectory || undefined
+      );
 
       if (result.success) {
         setMessage(`Merged PDF created successfully: ${result.outputPath}`);
@@ -161,9 +202,222 @@ function App() {
     }
   };
 
+  // Function to manually override a PDF match
+  const overrideMatch = async (index: number) => {
+    try {
+      // Get the current result
+      const result = detailedResults[index];
+
+      // Select a replacement PDF file
+      const pdfPath = await window.electron.selectFile('.pdf');
+
+      if (!pdfPath) {
+        return; // User canceled
+      }
+
+      // Get the filename from the path
+      const fileName = pdfPath.split('/').pop() || '';
+
+      // Update the result with the new match
+      const updatedResults = [...detailedResults];
+      updatedResults[index] = {
+        ...result,
+        matched: true,
+        pdfPath,
+        fileName,
+        overridden: true // Mark as manually overridden
+      };
+
+      setDetailedResults(updatedResults);
+
+      // Update the summary
+      if (results) {
+        const matched = updatedResults.filter(r => r.matched).length;
+        const notFound = updatedResults.length - matched;
+        setResults({
+          ...results,
+          matched,
+          notFound
+        });
+      }
+
+      setMessage(`Override successful: ${result.manufacturer} ${result.partNumber} → ${fileName}`);
+      setHasChanges(true);
+    } catch (error) {
+      console.error('Error overriding match:', error);
+      setMessage(`Error: ${(error as Error).message}`);
+    }
+  };
+
+  // Function to clear a manual override
+  const clearOverride = (index: number) => {
+    try {
+      // Get the current result
+      const result = detailedResults[index];
+
+      if (!result.overridden) {
+        return; // Not an override, nothing to clear
+      }
+
+      // Reset to unmatched
+      const updatedResults = [...detailedResults];
+      updatedResults[index] = {
+        ...result,
+        matched: false,
+        pdfPath: undefined,
+        fileName: undefined,
+        overridden: undefined
+      };
+
+      setDetailedResults(updatedResults);
+
+      // Update the summary
+      if (results) {
+        const matched = updatedResults.filter(r => r.matched).length;
+        const notFound = updatedResults.length - matched;
+        setResults({
+          ...results,
+          matched,
+          notFound
+        });
+      }
+
+      setMessage(`Override cleared for: ${result.manufacturer} ${result.partNumber}`);
+      setHasChanges(true);
+    } catch (error) {
+      console.error('Error clearing override:', error);
+      setMessage(`Error: ${(error as Error).message}`);
+    }
+  };
+
+  // Save current session to a JSON file
+  const saveSession = async () => {
+    if (!pdfDirectory || !csvFilePath) {
+      setMessage('Please select both PDF directory and CSV file before saving');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Create session data
+      const sessionData: SessionData = {
+        pdfDirectory,
+        csvFilePath,
+        outputDirectory: outputDirectory || undefined,
+        results: results || undefined,
+        detailedResults: detailedResults.length > 0 ? detailedResults : undefined,
+        createdAt: sessionFile ? (new Date().toISOString()) : new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // Save session data to file
+      const result = await window.electron.saveSession(sessionData);
+
+      if (result.success && result.filePath) {
+        setSessionFile(result.filePath);
+        setMessage(`Session saved to: ${result.filePath}`);
+        setHasChanges(false);
+      } else {
+        setMessage(`Error saving session: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error saving session:', error);
+      setMessage(`Error: ${(error as Error).message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load session from a JSON file
+  const loadSession = async () => {
+    setIsLoading(true);
+    try {
+      // Load session data from file
+      const result = await window.electron.loadSession();
+
+      if (result.success && result.sessionData) {
+        const { pdfDirectory, csvFilePath, outputDirectory, results, detailedResults, createdAt } = result.sessionData;
+
+        // Set session state
+        setPdfDirectory(pdfDirectory);
+        setCsvFilePath(csvFilePath);
+        setOutputDirectory(outputDirectory || null);
+        setResults(results || null);
+        setDetailedResults(detailedResults || []);
+        setSessionFile(createdAt);
+        setHasChanges(false);
+
+        // Scan the PDF directory to update available files
+        await scanPdfDirectory(pdfDirectory);
+
+        setMessage('Session loaded successfully');
+      } else {
+        setMessage(`Error loading session: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error loading session:', error);
+      setMessage(`Error: ${(error as Error).message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Start a new session
+  const newSession = () => {
+    if (hasChanges) {
+      const confirmNewSession = window.confirm(
+        'You have unsaved changes. Are you sure you want to start a new session?'
+      );
+
+      if (!confirmNewSession) {
+        return;
+      }
+    }
+
+    // Reset all state
+    setPdfDirectory(null);
+    setCsvFilePath(null);
+    setOutputDirectory(null);
+    setResults(null);
+    setDetailedResults([]);
+    setPdfFiles([]);
+    setSessionFile(null);
+    setHasChanges(false);
+    setMessage('New session started');
+  };
+
   return (
     <div className="app">
       <h1>Submittal Manager</h1>
+
+      <div className="session-controls">
+        <button
+          onClick={newSession}
+          className="session-button new-session-button"
+          disabled={isLoading || isGeneratingPdf}
+        >
+          New Session
+        </button>
+        <button
+          onClick={loadSession}
+          className="session-button load-session-button"
+          disabled={isLoading || isGeneratingPdf}
+        >
+          Load Session
+        </button>
+        <button
+          onClick={saveSession}
+          className="session-button save-session-button"
+          disabled={isLoading || isGeneratingPdf || (!pdfDirectory && !csvFilePath)}
+        >
+          {hasChanges ? "Save Session*" : "Save Session"}
+        </button>
+        {sessionFile && (
+          <div className="session-info">
+            Session file: {sessionFile.split('/').pop()}
+          </div>
+        )}
+      </div>
 
       <div className="main-container">
         <div className="input-section">
@@ -199,6 +453,24 @@ function App() {
               {csvFilePath && (
                 <div className="file-info">
                   <p>{csvFilePath.split('/').pop()}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="file-input-group">
+            <h2>3. Output Location (Optional)</h2>
+            <div className="file-input-container">
+              <button
+                onClick={selectOutputDirectory}
+                disabled={isLoading || isGeneratingPdf}
+                className="file-select-button"
+              >
+                {outputDirectory ? 'Change Output Location' : 'Select Output Location'}
+              </button>
+              {outputDirectory && (
+                <div className="file-info">
+                  <p>{outputDirectory}/{generateDefaultFileName()}</p>
                 </div>
               )}
             </div>
@@ -270,16 +542,25 @@ function App() {
                       <th>Part Number</th>
                       <th>Status</th>
                       <th>PDF Filename</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {detailedResults.map((result, index) => (
-                      <tr key={index} className={result.matched ? 'row-matched' : 'row-not-matched'}>
+                      <tr key={index} className={
+                        result.overridden
+                          ? 'row-overridden'
+                          : result.matched
+                            ? 'row-matched'
+                            : 'row-not-matched'
+                      }>
                         <td>{result.manufacturer}</td>
                         <td>{result.partNumber}</td>
                         <td className="status-cell">
                           {result.matched ? (
-                            <span className="status-matched">✅ Matched</span>
+                            <span className={result.overridden ? "status-overridden" : "status-matched"}>
+                              {result.overridden ? '⚙️ Override' : '✅ Matched'}
+                            </span>
                           ) : (
                             <span className="status-not-matched">❌ Not Found</span>
                           )}
@@ -289,6 +570,25 @@ function App() {
                             <span className="filename" title={result.pdfPath}>{result.fileName}</span>
                           ) : (
                             <span className="no-filename">-</span>
+                          )}
+                        </td>
+                        <td className="action-cell">
+                          {result.overridden ? (
+                            <button
+                              className="clear-override-button"
+                              onClick={() => clearOverride(index)}
+                              title="Clear override"
+                            >
+                              ↩️ Undo
+                            </button>
+                          ) : (
+                            <button
+                              className="override-button"
+                              onClick={() => overrideMatch(index)}
+                              title="Manually select a PDF for this item"
+                            >
+                              Override
+                            </button>
                           )}
                         </td>
                       </tr>
@@ -308,7 +608,9 @@ function App() {
               <li>Select a CSV file with your Bill of Materials</li>
               <li>Click "Match BOM to PDFs" to process</li>
               <li>Review matches in the results table</li>
-              <li>Create a merged submittal PDF of all matches</li>
+              <li>Manually override any unmatched or incorrect PDFs</li>
+              <li>Save your session to continue later</li>
+              <li>Create a merged submittal PDF when ready</li>
             </ol>
             <p>CSV file must include these columns:</p>
             <ul>

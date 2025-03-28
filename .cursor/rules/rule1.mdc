@@ -1,0 +1,41 @@
+---
+description: Use this context to guide component refactors, matching logic, PDF merging, and all UI enhancements.
+globs: .*
+---
+# Submittal Builder – Project Context
+
+This is an Electron-based desktop application designed for control panel integrators who need to create submittal packages. The purpose of the app is to combine existing cut sheet PDFs into a single, ordered submittal document based on a Bill of Materials (BOM).
+
+## App Behavior
+
+- The user uploads:
+  - A **CSV file** representing the BOM, with columns:
+    - `manufacturer`
+    - `part_number`
+  - A **folder of existing PDF cut sheets**
+
+- The app scans the filenames in the PDF folder and attempts to match each BOM line item to a PDF file.
+
+## Matching Rules
+
+- A file is considered a match if:
+  - The **filename contains both** the `manufacturer` and `part_number`
+  - Matching is **case-insensitive**
+  - Ignores **dashes**, **underscores**, and **file extensions**
+
+## Features
+
+- Show a status table: ✅ matched, ❌ not found
+- Allow **manual overrides**: User can manually select a file for unmatched parts
+- Combine matched PDFs into one final **`Submittal.pdf`**
+- Let the user choose an output directory
+- Optionally: Export/import session as a `.json` file for later editing
+
+## Tech Stack
+
+- Electron (main process)
+- React (renderer process)
+- Node.js filesystem, `pdf-lib` or `pdf-merger-js` for PDF handling
+
+## File Structure (Simplified)
+
