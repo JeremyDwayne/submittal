@@ -241,6 +241,124 @@
   border-bottom: none;
 }
 
+.results-table-container {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: #333;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.results-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 0.5rem;
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+}
+
+.results-table thead {
+  background-color: #1f1f1f;
+}
+
+.results-table th {
+  padding: 0.75rem 0.5rem;
+  text-align: left;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.results-table td {
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid #444;
+}
+
+.results-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.results-table .row-matched {
+  background-color: rgba(76, 175, 80, 0.1);
+}
+
+.results-table .row-not-matched {
+  background-color: rgba(244, 67, 54, 0.1);
+}
+
+.status-cell {
+  white-space: nowrap;
+}
+
+.status-matched {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.status-not-matched {
+  color: #f44336;
+  font-weight: 500;
+}
+
+.filename {
+  font-family: monospace;
+  word-break: break-all;
+  display: block;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.no-filename {
+  color: #888;
+  font-style: italic;
+}
+
+.merge-pdf-container {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.merge-pdf-button {
+  padding: 0.75rem 1.5rem;
+  background-color: #4a51e1;
+  color: white;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.merge-pdf-button:hover {
+  background-color: #3940c4;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+}
+
+.merge-pdf-button:disabled {
+  background-color: #666;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.merge-help-text {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #aaa;
+  font-style: italic;
+}
+
 @media (prefers-color-scheme: light) {
   .file-input-group {
     background-color: #f8f8f8;
@@ -310,5 +428,45 @@
 
   .pdf-list li {
     border-bottom-color: #ddd;
+  }
+
+  .results-table-container {
+    background-color: #f8f8f8;
+  }
+
+  .results-table thead {
+    background-color: #eaeaea;
+  }
+
+  .results-table th {
+    color: #333;
+  }
+
+  .results-table td {
+    border-bottom: 1px solid #ddd;
+  }
+
+  .results-table .row-matched {
+    background-color: rgba(76, 175, 80, 0.1);
+  }
+
+  .results-table .row-not-matched {
+    background-color: rgba(244, 67, 54, 0.1);
+  }
+
+  .status-matched {
+    color: #2e7d32;
+  }
+
+  .status-not-matched {
+    color: #c62828;
+  }
+
+  .no-filename {
+    color: #666;
+  }
+
+  .merge-help-text {
+    color: #666;
   }
 }

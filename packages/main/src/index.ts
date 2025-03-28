@@ -7,6 +7,7 @@ const fs = require('fs/promises');
 import type { IpcMainInvokeEvent } from 'electron';
 import { scanPdfDirectory, processBomEntry, processBomEntries } from './utils/pdf-service';
 import { parseBomCsv } from './utils/bom-parser';
+import { mergePdfs } from './utils/pdf-merger';
 
 let mainWindow: typeof BrowserWindow | null = null;
 
@@ -124,6 +125,7 @@ function registerIpcHandlers() {
   ipcMain.handle('bom:process', handleProcessBom);
   ipcMain.handle('pdfs:scan', handleScanPdfs);
   ipcMain.handle('pdf:find-match', handleFindPdfMatch);
+  ipcMain.handle('pdf:merge', handleMergePdfs);
 
   // External URL handling
   ipcMain.handle('url:open-external', async (_event: IpcMainInvokeEvent, url: string) => {
@@ -242,6 +244,63 @@ async function handleProcessBom(_event: IpcMainInvokeEvent, csvFilePath: string,
     };
   } catch (error) {
     console.error('Error processing BOM CSV:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles merging multiple PDF files into a single PDF
+ */
+async function handleMergePdfs(_event: IpcMainInvokeEvent, pdfPaths: string[], productInfo?: Array<{ manufacturer: string; partNumber: string; fileName?: string }>) {
+  try {
+    if (!pdfPaths || pdfPaths.length === 0) {
+      return {
+        success: false,
+        error: 'No PDF paths provided'
+      };
+    }
+
+    // Allow user to select output directory
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openDirectory'],
+      title: 'Select Output Directory for Submittal Package',
+      buttonLabel: 'Save Here'
+    });
+
+    if (canceled || filePaths.length === 0) {
+      // User canceled the dialog, use default directory
+      // Generate a filename with current date
+      const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const outputFileName = `Submittal-${dateStr}.pdf`;
+
+      // Merge PDFs
+      const outputPath = await mergePdfs(pdfPaths, outputFileName, undefined, productInfo);
+
+      return {
+        success: true,
+        outputPath
+      };
+    } else {
+      // User selected a directory
+      const outputDirectory = filePaths[0];
+
+      // Generate a filename with current date
+      const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const outputFileName = `Submittal-${dateStr}.pdf`;
+
+      // Merge PDFs
+      const outputPath = await mergePdfs(pdfPaths, outputFileName, outputDirectory, productInfo);
+
+      return {
+        success: true,
+        outputPath
+      };
+    }
+  } catch (error) {
+    console.error('Error merging PDFs:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error)

@@ -1,17 +1,29 @@
 import { useState } from 'react';
 import './App.css';
 
+type MatchResult = {
+  manufacturer: string;
+  partNumber: string;
+  matched: boolean;
+  pdfPath?: string;
+  fileName?: string;
+};
+
+type ResultSummary = {
+  total: number;
+  matched: number;
+  notFound: number;
+};
+
 function App() {
   const [pdfFiles, setPdfFiles] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [pdfDirectory, setPdfDirectory] = useState<string | null>(null);
   const [csvFilePath, setCsvFilePath] = useState<string | null>(null);
-  const [results, setResults] = useState<{
-    total: number;
-    matched: number;
-    notFound: number;
-  } | null>(null);
+  const [results, setResults] = useState<ResultSummary | null>(null);
+  const [detailedResults, setDetailedResults] = useState<MatchResult[]>([]);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const selectPdfDirectory = async () => {
     try {
@@ -52,12 +64,18 @@ function App() {
 
     setIsLoading(true);
     setResults(null);
+    setDetailedResults([]);
 
     try {
       const result = await window.electron.processBom(csvFilePath, pdfDirectory);
 
       if (result.success && result.summary) {
         setResults(result.summary);
+
+        if (result.results) {
+          setDetailedResults(result.results);
+        }
+
         setMessage(
           `Processed ${result.summary.total} items: ` +
           `${result.summary.matched} matched, ` +
@@ -95,6 +113,54 @@ function App() {
     }
   };
 
+  const createMergedPdf = async () => {
+    if (detailedResults.length === 0) {
+      setMessage('No results to merge');
+      return;
+    }
+
+    const matchedResults = detailedResults.filter(result => result.matched && result.pdfPath);
+
+    if (matchedResults.length === 0) {
+      setMessage('No matched PDFs to merge');
+      return;
+    }
+
+    setIsGeneratingPdf(true);
+    setMessage('Generating merged PDF...');
+
+    try {
+      // Get paths of all matched PDFs
+      const pdfPaths = matchedResults.map(result => result.pdfPath as string);
+
+      // Create product info array for the table of contents
+      const productInfo = matchedResults.map(result => ({
+        manufacturer: result.manufacturer,
+        partNumber: result.partNumber,
+        fileName: result.fileName
+      }));
+
+      // Call the main process to merge PDFs
+      const result = await window.electron.createMergedPdf(pdfPaths, productInfo);
+
+      if (result.success) {
+        setMessage(`Merged PDF created successfully: ${result.outputPath}`);
+
+        // Open the PDF automatically
+        if (result.outputPath) {
+          await window.electron.openFile(result.outputPath);
+        }
+      } else {
+        setMessage(`Error creating merged PDF: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error merging PDFs:', error);
+      setMessage(`Error: ${(error as Error).message}`);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   return (
     <div className="app">
       <h1>Submittal Manager</h1>
@@ -106,7 +172,7 @@ function App() {
             <div className="file-input-container">
               <button
                 onClick={selectPdfDirectory}
-                disabled={isLoading}
+                disabled={isLoading || isGeneratingPdf}
                 className="file-select-button"
               >
                 {pdfDirectory ? 'Change PDF Directory' : 'Select PDF Directory'}
@@ -125,7 +191,7 @@ function App() {
             <div className="file-input-container">
               <button
                 onClick={selectCsvFile}
-                disabled={isLoading}
+                disabled={isLoading || isGeneratingPdf}
                 className="file-select-button"
               >
                 {csvFilePath ? 'Change CSV File' : 'Select CSV File'}
@@ -141,7 +207,7 @@ function App() {
           <div className="submit-section">
             <button
               onClick={processBom}
-              disabled={isLoading || !pdfDirectory || !csvFilePath}
+              disabled={isLoading || isGeneratingPdf || !pdfDirectory || !csvFilePath}
               className="submit-button"
             >
               {isLoading ? 'Processing...' : 'Match BOM to PDFs'}
@@ -177,6 +243,59 @@ function App() {
                   <span className="stat-label">Not Found</span>
                 </div>
               </div>
+
+              {results.matched > 0 && (
+                <div className="merge-pdf-container">
+                  <button
+                    className="merge-pdf-button"
+                    onClick={createMergedPdf}
+                    disabled={isLoading || isGeneratingPdf}
+                  >
+                    {isGeneratingPdf ? 'Creating PDF...' : 'Create Merged Submittal PDF'}
+                  </button>
+                  <p className="merge-help-text">Creates a single PDF containing all matched cut sheets</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {detailedResults.length > 0 && (
+            <div className="results-table-container">
+              <h3>Detailed Results</h3>
+              <div className="results-table-wrapper">
+                <table className="results-table">
+                  <thead>
+                    <tr>
+                      <th>Manufacturer</th>
+                      <th>Part Number</th>
+                      <th>Status</th>
+                      <th>PDF Filename</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detailedResults.map((result, index) => (
+                      <tr key={index} className={result.matched ? 'row-matched' : 'row-not-matched'}>
+                        <td>{result.manufacturer}</td>
+                        <td>{result.partNumber}</td>
+                        <td className="status-cell">
+                          {result.matched ? (
+                            <span className="status-matched">✅ Matched</span>
+                          ) : (
+                            <span className="status-not-matched">❌ Not Found</span>
+                          )}
+                        </td>
+                        <td>
+                          {result.fileName ? (
+                            <span className="filename" title={result.pdfPath}>{result.fileName}</span>
+                          ) : (
+                            <span className="no-filename">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -188,6 +307,8 @@ function App() {
               <li>Select a directory containing your PDF cut sheets</li>
               <li>Select a CSV file with your Bill of Materials</li>
               <li>Click "Match BOM to PDFs" to process</li>
+              <li>Review matches in the results table</li>
+              <li>Create a merged submittal PDF of all matches</li>
             </ol>
             <p>CSV file must include these columns:</p>
             <ul>

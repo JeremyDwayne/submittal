@@ -57,6 +57,20 @@ contextBridge.exposeInMainWorld('electron', {
     error?: string;
   }> => ipcRenderer.invoke('bom:process', csvFilePath, pdfDirectory),
 
+  // PDF merging operation
+  createMergedPdf: (
+    pdfPaths: string[],
+    productInfo?: Array<{
+      manufacturer: string;
+      partNumber: string;
+      fileName?: string;
+    }>
+  ): Promise<{
+    success: boolean;
+    outputPath?: string;
+    error?: string;
+  }> => ipcRenderer.invoke('pdf:merge', pdfPaths, productInfo),
+
   // External URL handling
   openExternalUrl: (url: string): Promise<void> => ipcRenderer.invoke('url:open-external', url),
 }); 

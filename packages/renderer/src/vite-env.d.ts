@@ -55,6 +55,20 @@ interface ElectronAPI {
         error?: string;
     }>;
 
+    // PDF merging operation
+    createMergedPdf: (
+        pdfPaths: string[],
+        productInfo?: Array<{
+            manufacturer: string;
+            partNumber: string;
+            fileName?: string;
+        }>
+    ) => Promise<{
+        success: boolean;
+        outputPath?: string;
+        error?: string;
+    }>;
+
     // External URL handling
     openExternalUrl: (url: string) => Promise<void>;
 }
