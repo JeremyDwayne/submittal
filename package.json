@@ -33,8 +33,11 @@
   },
   "dependencies": {
     "@types/pdfkit": "^0.13.9",
+    "@uploadthing/react": "^7.3.0",
     "csv-parse": "^5.6.0",
+    "node-fetch": "^3.3.2",
     "pdf-lib": "^1.17.1",
-    "pdfkit": "^0.16.0"
+    "pdfkit": "^0.16.0",
+    "uploadthing": "^7.6.0"
   }
 }

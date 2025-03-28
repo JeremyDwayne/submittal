@@ -1,9 +1,16 @@
 import axios from 'axios';
 import path from 'path';
-import fs from 'fs/promises';
+import { promises as fs } from 'fs';
 import { app } from 'electron';
 import Store from 'electron-store';
 import isDev from 'electron-is-dev';
+import fetch from 'node-fetch';
+import {
+    updatePdfMetadata,
+    calculateFileHash,
+    PdfMetadata,
+    findPdfByPart
+} from './pdf-metadata';
 
 // Define the cache schema
 interface CacheSchema {
@@ -276,4 +283,264 @@ export function clearCache(brand?: string, partNumber?: string): number {
 
     store.set('cutSheets', cutSheets);
     return removed;
+}
+
+/**
+ * Gets the base directory for cut sheets storage
+ * This creates ~/AppData/.../cut_sheets/ on Windows
+ * ~/Library/Application Support/.../cut_sheets/ on macOS
+ * ~/.config/.../cut_sheets/ on Linux
+ */
+export async function getCutSheetsBaseDir(): Promise<string> {
+    // Get the appropriate base directory based on the OS
+    const baseDir = isDev
+        ? path.join(__dirname, '../../../..', 'data', 'cut_sheets')
+        : path.join(app.getPath('userData'), 'cut_sheets');
+
+    // Ensure the directory exists
+    await fs.mkdir(baseDir, { recursive: true });
+
+    return baseDir;
+}
+
+/**
+ * Creates a directory for a specific manufacturer within the cut sheets directory
+ */
+export async function ensureManufacturerDir(manufacturer: string): Promise<string> {
+    // Sanitize the manufacturer name for use as a directory name
+    const sanitizedName = manufacturer
+        .replace(/[/\\?%*:|"<>]/g, '')
+        .replace(/\s+/g, '_');
+
+    // Get the path to the manufacturer directory
+    const baseDir = await getCutSheetsBaseDir();
+    const manufacturerDir = path.join(baseDir, sanitizedName);
+
+    // Create the directory if it doesn't exist
+    await fs.mkdir(manufacturerDir, { recursive: true });
+
+    return manufacturerDir;
+}
+
+/**
+ * Downloads a PDF from UploadThing and stores it in the appropriate location
+ * 
+ * @param manufacturer The manufacturer name
+ * @param partNumber The part number
+ * @param remoteUrl The URL to download from (must be provided if metadata isn't found)
+ * @param forceDownload If true, always download even if the file exists and has the same hash
+ * @returns Information about the downloaded file
+ */
+export async function downloadPdfFromUploadThing(
+    manufacturer: string,
+    partNumber: string,
+    remoteUrl?: string,
+    forceDownload: boolean = false
+): Promise<{
+    success: boolean;
+    localPath?: string;
+    versionHash?: string;
+    wasDownloaded?: boolean;
+    error?: string;
+    metadata?: PdfMetadata;
+}> {
+    try {
+        if (!manufacturer || !partNumber) {
+            return {
+                success: false,
+                error: 'Manufacturer and part number are required'
+            };
+        }
+
+        // First, try to find the metadata if this part is already known
+        const existingMetadata = await findPdfByPart(manufacturer, partNumber);
+
+        // Determine the remote URL to use
+        const urlToUse = remoteUrl || existingMetadata?.remoteUrl;
+
+        if (!urlToUse) {
+            return {
+                success: false,
+                error: 'No remote URL provided and no matching metadata found'
+            };
+        }
+
+        // Create the directory structure
+        const manufacturerDir = await ensureManufacturerDir(manufacturer);
+        const fileName = getSanitizedFilename(partNumber);
+        const localPath = path.join(manufacturerDir, fileName);
+
+        // Check if file exists and if we have metadata
+        let needsDownload = forceDownload;
+
+        try {
+            // Check if the file exists
+            await fs.access(localPath);
+
+            // If force download is not enabled and we have metadata, check if the hash matches
+            if (!forceDownload && existingMetadata) {
+                // If the local file has a different path than what's in metadata,
+                // update the metadata to point to the new location
+                if (existingMetadata.localPath !== localPath) {
+                    const newMetadata = await updatePdfMetadata(
+                        partNumber,
+                        manufacturer,
+                        localPath,
+                        urlToUse
+                    );
+
+                    // Return success - we have the file and updated metadata
+                    return {
+                        success: true,
+                        localPath,
+                        versionHash: newMetadata.versionHash,
+                        wasDownloaded: false,
+                        metadata: newMetadata
+                    };
+                }
+
+                // If the local file exists and has the same hash as in metadata,
+                // no need to download again
+                const currentHash = await calculateFileHash(localPath);
+                if (currentHash === existingMetadata.versionHash) {
+                    return {
+                        success: true,
+                        localPath,
+                        versionHash: currentHash,
+                        wasDownloaded: false,
+                        metadata: existingMetadata
+                    };
+                } else {
+                    // Hash is different, file has changed and needs to be re-downloaded
+                    needsDownload = true;
+                }
+            } else {
+                // File exists but no metadata or force download is enabled
+                needsDownload = true;
+            }
+        } catch (error) {
+            // File doesn't exist, need to download
+            needsDownload = true;
+        }
+
+        // If we get here and don't need to download, it means something unexpected happened
+        if (!needsDownload) {
+            return {
+                success: false,
+                error: 'Unexpected state: file exists but download decision couldn\'t be made'
+            };
+        }
+
+        // Download the file
+        console.log(`Downloading PDF from ${urlToUse} to ${localPath}`);
+
+        const response = await fetch(urlToUse, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/pdf',
+                'User-Agent': 'Submittal-App/1.0',
+            }
+        });
+
+        if (!response.ok) {
+            return {
+                success: false,
+                error: `Download failed with status ${response.status}: ${response.statusText}`
+            };
+        }
+
+        // Check content type
+        const contentType = response.headers.get('content-type');
+        if (contentType && !contentType.includes('pdf') && !contentType.includes('octet-stream')) {
+            console.warn(`Warning: Expected PDF content, but got ${contentType}`);
+        }
+
+        // Save the file
+        const buffer = Buffer.from(await response.arrayBuffer());
+        await fs.writeFile(localPath, buffer);
+
+        // Update the metadata
+        const metadata = await updatePdfMetadata(
+            partNumber,
+            manufacturer,
+            localPath,
+            urlToUse
+        );
+
+        return {
+            success: true,
+            localPath,
+            versionHash: metadata.versionHash,
+            wasDownloaded: true,
+            metadata
+        };
+    } catch (error) {
+        console.error('Error downloading PDF:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error)
+        };
+    }
+}
+
+/**
+ * Downloads multiple PDFs from their UploadThing URLs
+ */
+export async function downloadMultiplePdfs(
+    items: Array<{
+        manufacturer: string;
+        partNumber: string;
+        remoteUrl?: string;
+    }>,
+    forceDownload: boolean = false
+): Promise<{
+    success: boolean;
+    results: Array<{
+        manufacturer: string;
+        partNumber: string;
+        success: boolean;
+        localPath?: string;
+        wasDownloaded?: boolean;
+        error?: string;
+    }>;
+    summary: {
+        total: number;
+        downloaded: number;
+        alreadyCached: number;
+        failed: number;
+    };
+}> {
+    const results = await Promise.all(
+        items.map(async (item) => {
+            const result = await downloadPdfFromUploadThing(
+                item.manufacturer,
+                item.partNumber,
+                item.remoteUrl,
+                forceDownload
+            );
+
+            return {
+                manufacturer: item.manufacturer,
+                partNumber: item.partNumber,
+                success: result.success,
+                localPath: result.localPath,
+                wasDownloaded: result.wasDownloaded,
+                error: result.error
+            };
+        })
+    );
+
+    // Calculate summary
+    const summary = {
+        total: results.length,
+        downloaded: results.filter(r => r.success && r.wasDownloaded).length,
+        alreadyCached: results.filter(r => r.success && !r.wasDownloaded).length,
+        failed: results.filter(r => !r.success).length
+    };
+
+    return {
+        success: summary.failed === 0,
+        results,
+        summary
+    };
 } 

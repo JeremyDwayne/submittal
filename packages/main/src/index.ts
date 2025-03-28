@@ -8,6 +8,17 @@ import type { IpcMainInvokeEvent } from 'electron';
 import { scanPdfDirectory, processBomEntry, processBomEntries } from './utils/pdf-service';
 import { parseBomCsv } from './utils/bom-parser';
 import { mergePdfs } from './utils/pdf-merger';
+import { uploadDirectoryPdfs, getUploadedFiles, deleteRemoteFile } from './utils/upload-service';
+import {
+  getPdfMetadata,
+  listPdfMetadata,
+  updatePdfMetadata,
+  removePdfMetadata
+} from './utils/pdf-metadata';
+import {
+  downloadPdfFromUploadThing,
+  downloadMultiplePdfs
+} from './utils/pdf-downloader';
 
 // Add session type definition
 interface SessionData {
@@ -149,9 +160,24 @@ function registerIpcHandlers() {
   ipcMain.handle('pdf:find-match', handleFindPdfMatch);
   ipcMain.handle('pdf:merge', handleMergePdfs);
 
+  // PDF download from UploadThing
+  ipcMain.handle('pdf:download', handleDownloadPdf);
+  ipcMain.handle('pdfs:download-multiple', handleDownloadMultiplePdfs);
+
   // Session management
   ipcMain.handle('session:save', handleSaveSession);
   ipcMain.handle('session:load', handleLoadSession);
+
+  // PDF metadata operations
+  ipcMain.handle('pdf:get-metadata', handleGetPdfMetadata);
+  ipcMain.handle('pdf:update-metadata', handleUpdatePdfMetadata);
+  ipcMain.handle('pdf:remove-metadata', handleRemovePdfMetadata);
+  ipcMain.handle('pdf:list-metadata', handleListPdfMetadata);
+
+  // UploadThing operations
+  ipcMain.handle('pdfs:upload', handleUploadPdfs);
+  ipcMain.handle('uploads:list', handleListUploads);
+  ipcMain.handle('upload:delete', handleDeleteUpload);
 
   // External URL handling
   ipcMain.handle('url:open-external', async (_event: IpcMainInvokeEvent, url: string) => {
@@ -494,5 +520,264 @@ async function fileExists(path: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+// New handlers for PDF metadata
+
+/**
+ * Handles getting metadata for a specific PDF file
+ */
+async function handleGetPdfMetadata(_event: IpcMainInvokeEvent, filePath: string) {
+  try {
+    if (!filePath) {
+      return {
+        success: false,
+        error: 'No file path provided'
+      };
+    }
+
+    const metadata = await getPdfMetadata(filePath);
+
+    if (!metadata) {
+      return {
+        success: false,
+        error: 'Metadata not found for the specified file'
+      };
+    }
+
+    return {
+      success: true,
+      metadata
+    };
+  } catch (error) {
+    console.error('Error getting PDF metadata:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles updating metadata for a PDF file
+ */
+async function handleUpdatePdfMetadata(
+  _event: IpcMainInvokeEvent,
+  partNumber: string,
+  manufacturer: string,
+  localPath: string,
+  remoteUrl?: string
+) {
+  try {
+    if (!localPath || !partNumber || !manufacturer) {
+      return {
+        success: false,
+        error: 'Missing required parameters: partNumber, manufacturer, and localPath are required'
+      };
+    }
+
+    // Check if file exists
+    await fs.access(localPath).catch(() => {
+      throw new Error(`File not found: ${localPath}`);
+    });
+
+    const metadata = await updatePdfMetadata(partNumber, manufacturer, localPath, remoteUrl);
+
+    return {
+      success: true,
+      metadata
+    };
+  } catch (error) {
+    console.error('Error updating PDF metadata:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles removing metadata for a PDF file
+ */
+async function handleRemovePdfMetadata(_event: IpcMainInvokeEvent, filePath: string) {
+  try {
+    if (!filePath) {
+      return {
+        success: false,
+        error: 'No file path provided'
+      };
+    }
+
+    const removed = await removePdfMetadata(filePath);
+
+    return {
+      success: removed,
+      error: removed ? undefined : 'Metadata not found for the specified file'
+    };
+  } catch (error) {
+    console.error('Error removing PDF metadata:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles listing all PDF metadata
+ */
+async function handleListPdfMetadata(_event: IpcMainInvokeEvent, options?: { onlyWithRemoteUrl?: boolean }) {
+  try {
+    let metadata = await listPdfMetadata();
+
+    // Filter for only files with remote URLs if requested
+    if (options?.onlyWithRemoteUrl) {
+      metadata = metadata.filter(item => !!item.remoteUrl);
+    }
+
+    return {
+      success: true,
+      metadata
+    };
+  } catch (error) {
+    console.error('Error listing PDF metadata:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles uploading PDFs to cloud storage
+ */
+async function handleUploadPdfs(_event: IpcMainInvokeEvent, directory: string, extractMetadata: boolean = true) {
+  try {
+    if (!directory) {
+      return {
+        success: false,
+        error: 'No directory provided'
+      };
+    }
+
+    // Check if directory exists
+    await fs.access(directory).catch(() => {
+      throw new Error(`Directory not found: ${directory}`);
+    });
+
+    // Upload PDFs with metadata extraction enabled
+    const result = await uploadDirectoryPdfs(directory, extractMetadata);
+    return result;
+  } catch (error) {
+    console.error('Error uploading PDFs:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles listing uploaded files
+ */
+async function handleListUploads() {
+  try {
+    const uploads = await getUploadedFiles();
+    return {
+      success: true,
+      uploads
+    };
+  } catch (error) {
+    console.error('Error listing uploads:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles deleting an uploaded file
+ */
+async function handleDeleteUpload(_event: IpcMainInvokeEvent, filePath: string) {
+  try {
+    if (!filePath) {
+      return {
+        success: false,
+        error: 'No file path provided'
+      };
+    }
+
+    const result = await deleteRemoteFile(filePath);
+    return {
+      success: result,
+      error: result ? undefined : 'Failed to delete file'
+    };
+  } catch (error) {
+    console.error('Error deleting upload:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles downloading a PDF from UploadThing
+ */
+async function handleDownloadPdf(
+  _event: IpcMainInvokeEvent,
+  manufacturer: string,
+  partNumber: string,
+  remoteUrl?: string,
+  forceDownload: boolean = false
+) {
+  try {
+    if (!manufacturer || !partNumber) {
+      return {
+        success: false,
+        error: 'Manufacturer and part number are required'
+      };
+    }
+
+    const result = await downloadPdfFromUploadThing(manufacturer, partNumber, remoteUrl, forceDownload);
+    return result;
+  } catch (error) {
+    console.error('Error downloading PDF:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles downloading multiple PDFs from UploadThing
+ */
+async function handleDownloadMultiplePdfs(
+  _event: IpcMainInvokeEvent,
+  items: Array<{
+    manufacturer: string;
+    partNumber: string;
+    remoteUrl?: string;
+  }>,
+  forceDownload: boolean = false
+) {
+  try {
+    if (!items || items.length === 0) {
+      return {
+        success: false,
+        error: 'No items provided for download'
+      };
+    }
+
+    return await downloadMultiplePdfs(items, forceDownload);
+  } catch (error) {
+    console.error('Error downloading multiple PDFs:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
   }
 } 

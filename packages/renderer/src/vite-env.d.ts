@@ -22,6 +22,18 @@ interface SessionData {
     updatedAt: string;
 }
 
+// Define PdfMetadata interface
+interface PdfMetadata {
+    partNumber: string;
+    manufacturer: string;
+    localPath: string;
+    remoteUrl?: string;
+    versionHash: string;
+    fileSize: number;
+    lastUpdated: string;
+    fileName: string;
+}
+
 interface ElectronAPI {
     // File system operations
     openFile: (filePath: string) => Promise<boolean>;
@@ -55,6 +67,46 @@ interface ElectronAPI {
         pdfPath?: string;
         fileName?: string;
         error?: string;
+    }>;
+
+    // PDF download operations
+    downloadPdf: (
+        manufacturer: string,
+        partNumber: string,
+        remoteUrl?: string,
+        forceDownload?: boolean
+    ) => Promise<{
+        success: boolean;
+        localPath?: string;
+        versionHash?: string;
+        wasDownloaded?: boolean;
+        error?: string;
+        metadata?: PdfMetadata;
+    }>;
+
+    downloadMultiplePdfs: (
+        items: Array<{
+            manufacturer: string;
+            partNumber: string;
+            remoteUrl?: string;
+        }>,
+        forceDownload?: boolean
+    ) => Promise<{
+        success: boolean;
+        results: Array<{
+            manufacturer: string;
+            partNumber: string;
+            success: boolean;
+            localPath?: string;
+            wasDownloaded?: boolean;
+            error?: string;
+        }>;
+        summary: {
+            total: number;
+            downloaded: number;
+            alreadyCached: number;
+            failed: number;
+        };
     }>;
 
     processBom: (
@@ -104,6 +156,79 @@ interface ElectronAPI {
     loadSession: () => Promise<{
         success: boolean;
         sessionData?: SessionData;
+        error?: string;
+    }>;
+
+    // UploadThing integration
+    uploadPdfs: (
+        directory: string,
+        extractMetadata?: boolean
+    ) => Promise<{
+        success: boolean;
+        results?: Array<{
+            filePath: string;
+            fileName: string;
+            isUploaded: boolean;
+            remoteUrl?: string;
+            error?: string;
+            wasSkipped?: boolean;
+            manufacturer?: string;
+            partNumber?: string;
+        }>;
+        summary?: {
+            total: number;
+            uploaded: number;
+            failed: number;
+            skipped: number;
+        };
+        error?: string;
+    }>;
+
+    listUploads: () => Promise<{
+        success: boolean;
+        uploads?: Array<PdfMetadata>;
+        error?: string;
+    }>;
+
+    deleteUpload: (
+        filePath: string
+    ) => Promise<{
+        success: boolean;
+        error?: string;
+    }>;
+
+    // PDF metadata operations
+    getPdfMetadata: (
+        filePath: string
+    ) => Promise<{
+        success: boolean;
+        metadata?: PdfMetadata;
+        error?: string;
+    }>;
+
+    updatePdfMetadata: (
+        partNumber: string,
+        manufacturer: string,
+        localPath: string,
+        remoteUrl?: string
+    ) => Promise<{
+        success: boolean;
+        metadata?: PdfMetadata;
+        error?: string;
+    }>;
+
+    removePdfMetadata: (
+        filePath: string
+    ) => Promise<{
+        success: boolean;
+        error?: string;
+    }>;
+
+    listPdfMetadata: (
+        options?: { onlyWithRemoteUrl?: boolean }
+    ) => Promise<{
+        success: boolean;
+        metadata?: Array<PdfMetadata>;
         error?: string;
     }>;
 
