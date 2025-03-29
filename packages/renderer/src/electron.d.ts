@@ -100,6 +100,22 @@ interface ElectronAPI {
     error?: string;
   }>;
   openExternalUrl: (url: string) => Promise<void>;
+  findPdfFilesRecursively: (
+    directory: string,
+    options?: {
+      includeSubdirectories?: boolean;
+      skipHiddenDirectories?: boolean;
+    }
+  ) => Promise<{
+    success: boolean;
+    pdfFiles?: string[];
+    fileInfo?: Array<{
+      path: string;
+      name: string;
+      size: number;
+    }>;
+    error?: string;
+  }>;
 }
 
 interface Window {

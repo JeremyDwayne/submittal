@@ -13,18 +13,22 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   display: flex;
-  place-items: center;
-  min-width: 320px;
   min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 #root {
-  max-width: 1280px;
+  max-width: 100%;
   width: 100%;
-  padding: 2rem;
+  padding: 1rem;
   text-align: center;
 }
 
@@ -33,4 +37,16 @@ body {
     color: #213547;
     background-color: #ffffff;
   }
-} 
+}
+
+@media screen and (max-width: 768px) {
+  #root {
+    padding: 0.5rem;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  #root {
+    padding: 0.25rem;
+  }
+}

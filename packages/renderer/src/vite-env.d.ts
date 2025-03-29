@@ -22,6 +22,29 @@ interface SessionData {
     updatedAt: string;
 }
 
+// Define settings interfaces
+interface DirectorySettings {
+    defaultPdfDirectory: string | null;
+    defaultOutputDirectory: string | null;
+}
+
+interface PreferenceSettings {
+    rememberLastProject: boolean;
+    autoScanDirectory: boolean;
+}
+
+interface LastSessionInfo {
+    pdfDirectory: string | null;
+    outputDirectory: string | null;
+    projectName: string | null;
+}
+
+interface SettingsSchema {
+    directories: DirectorySettings;
+    preferences: PreferenceSettings;
+    lastSession: LastSessionInfo;
+}
+
 // Define PdfMetadata interface
 interface PdfMetadata {
     partNumber: string;
@@ -50,6 +73,23 @@ interface PdfManifest {
     files: Record<string, ManifestEntry>;
 }
 
+interface ProjectData {
+    id: string;
+    name: string;
+    createdAt: string;
+    lastAccessedAt: string;
+    directories: {
+        root: string;
+        output: string;
+    };
+}
+
+interface ProjectDirectoriesData {
+    pdfDirectory: string;
+    outputDirectory: string;
+}
+
+// Define the Electron API interface
 interface ElectronAPI {
     // File system operations
     openFile: (filePath: string) => Promise<boolean>;
@@ -57,31 +97,169 @@ interface ElectronAPI {
     selectFiles: (fileTypeFilter?: string) => Promise<string[] | null>;
     readFile: (filePath: string) => Promise<string | null>;
     selectFolder: () => Promise<string | null>;
+    openExternalUrl: (url: string) => Promise<boolean>;
 
-    // PDF/BOM matching operations
-    scanPdfDirectory: (
-        directory: string
-    ) => Promise<{
+    // PDF operations
+    scanPdfDirectory: (directory: string) => Promise<{
         success: boolean;
-        pdfFiles?: Array<{
-            pdfPath: string;
-            fileName: string;
-        }>;
+        pdfFiles?: Array<{ pdfPath: string; fileName: string }>;
         directory?: string;
         error?: string;
     }>;
-
-    findPdfMatch: (
-        pdfDirectory: string,
-        manufacturer: string,
-        partNumber: string
-    ) => Promise<{
+    findPdfMatch: (pdfDirectory: string, manufacturer: string, partNumber: string) => Promise<{
         success: boolean;
         manufacturer: string;
         partNumber: string;
         matched: boolean;
         pdfPath?: string;
         fileName?: string;
+        error?: string;
+    }>;
+    processBom: (csvPath: string, pdfDirectory: string) => Promise<{
+        success: boolean;
+        summary?: {
+            total: number;
+            matched: number;
+            notFound: number;
+        };
+        results?: Array<{
+            manufacturer: string;
+            partNumber: string;
+            matched: boolean;
+            pdfPath?: string;
+            fileName?: string;
+        }>;
+        error?: string;
+    }>;
+    overrideMatch: (pdfDirectory: string, manufacturer: string, partNumber: string) => Promise<{
+        success: boolean;
+        manufacturer: string;
+        partNumber: string;
+        matched: boolean;
+        pdfPath?: string;
+        fileName?: string;
+        overridden?: boolean;
+        error?: string;
+    }>;
+    clearOverride: (manufacturer: string, partNumber: string) => Promise<{
+        success: boolean;
+        manufacturer: string;
+        partNumber: string;
+        matched: boolean;
+        error?: string;
+    }>;
+    createMergedPdf: (
+        pdfPaths: string[],
+        productInfo?: Array<{
+            manufacturer: string;
+            partNumber: string;
+            fileName?: string;
+        }>,
+        outputDirectory?: string
+    ) => Promise<{
+        success: boolean;
+        outputPath?: string;
+        error?: string;
+    }>;
+
+    // Session management
+    saveSession: (sessionData: SessionData) => Promise<{
+        success: boolean;
+        filePath?: string;
+        error?: string;
+    }>;
+    loadSession: () => Promise<{
+        success: boolean;
+        sessionData?: SessionData;
+        error?: string;
+    }>;
+
+    // Upload operations
+    uploadPdfs: (directory: string) => Promise<{
+        success: boolean;
+        results?: Array<{
+            fileName: string;
+            success: boolean;
+            url?: string;
+            size?: number;
+            error?: string;
+        }>;
+        error?: string;
+    }>;
+    getUploadedFiles: () => Promise<{
+        success: boolean;
+        files?: Array<{
+            fileName: string;
+            url: string;
+            size: number;
+            localPath: string;
+        }>;
+        error?: string;
+    }>;
+    deleteUpload: (localPath: string) => Promise<{
+        success: boolean;
+        error?: string;
+    }>;
+
+    // PDF finder operations
+    findPdfFilesRecursively: (
+        directory: string,
+        options?: {
+            includeSubdirectories?: boolean;
+            skipHiddenDirectories?: boolean;
+        }
+    ) => Promise<{
+        success: boolean;
+        pdfFiles?: string[];
+        fileInfo?: Array<{ path: string; name: string; size: number }>;
+        error?: string;
+    }>;
+
+    // Manifest operations
+    createManifest: (
+        projectName: string
+    ) => Promise<{
+        success: boolean;
+        url?: string;
+        manifestData?: object;
+        error?: string;
+    }>;
+    downloadManifest: (
+        url: string
+    ) => Promise<{
+        success: boolean;
+        manifestData?: object;
+        error?: string;
+    }>;
+
+    // Settings management
+    getSettings: () => Promise<{
+        success: boolean;
+        settings?: SettingsSchema;
+        error?: string;
+    }>;
+    setDirectorySettings: (settings: Partial<DirectorySettings>) => Promise<{
+        success: boolean;
+        error?: string;
+    }>;
+    setPreferenceSettings: (settings: Partial<PreferenceSettings>) => Promise<{
+        success: boolean;
+        error?: string;
+    }>;
+    setLastSession: (sessionInfo: Partial<LastSessionInfo>) => Promise<{
+        success: boolean;
+        error?: string;
+    }>;
+    getDefaultDirectories: (projectName?: string) => Promise<{
+        success: boolean;
+        directories?: {
+            pdfDirectory: string | null;
+            outputDirectory: string | null;
+        };
+        error?: string;
+    }>;
+    resetSettings: () => Promise<{
+        success: boolean;
         error?: string;
     }>;
 
@@ -179,94 +357,6 @@ interface ElectronAPI {
         error?: string;
     }>;
 
-    processBom: (
-        csvFilePath: string,
-        pdfDirectory: string
-    ) => Promise<{
-        success: boolean;
-        results?: Array<{
-            manufacturer: string;
-            partNumber: string;
-            matched: boolean;
-            pdfPath?: string;
-            fileName?: string;
-        }>;
-        summary?: {
-            total: number;
-            matched: number;
-            notFound: number;
-        };
-        error?: string;
-    }>;
-
-    // PDF merging operation
-    createMergedPdf: (
-        pdfPaths: string[],
-        productInfo?: Array<{
-            manufacturer: string;
-            partNumber: string;
-            fileName?: string;
-        }>,
-        outputDirectory?: string
-    ) => Promise<{
-        success: boolean;
-        outputPath?: string;
-        error?: string;
-    }>;
-
-    // Session management
-    saveSession: (
-        sessionData: SessionData
-    ) => Promise<{
-        success: boolean;
-        filePath?: string;
-        error?: string;
-    }>;
-
-    loadSession: () => Promise<{
-        success: boolean;
-        sessionData?: SessionData;
-        error?: string;
-    }>;
-
-    // UploadThing integration
-    uploadPdfs: (
-        directory: string,
-        extractMetadata?: boolean
-    ) => Promise<{
-        success: boolean;
-        results?: Array<{
-            filePath: string;
-            fileName: string;
-            isUploaded: boolean;
-            remoteUrl?: string;
-            error?: string;
-            wasSkipped?: boolean;
-            manufacturer?: string;
-            partNumber?: string;
-        }>;
-        summary?: {
-            total: number;
-            uploaded: number;
-            failed: number;
-            skipped: number;
-        };
-        error?: string;
-    }>;
-
-    listUploads: () => Promise<{
-        success: boolean;
-        uploads?: Array<PdfMetadata>;
-        error?: string;
-    }>;
-
-    deleteUpload: (
-        filePath: string
-    ) => Promise<{
-        success: boolean;
-        error?: string;
-    }>;
-
     // PDF metadata operations
     getPdfMetadata: (
         filePath: string
@@ -302,24 +392,59 @@ interface ElectronAPI {
         error?: string;
     }>;
 
-    // External URL handling
-    openExternalUrl: (url: string) => Promise<void>;
-
-    // Manifest operations
-    createManifest: (
-        projectName?: string
-    ) => Promise<{
+    // Project management
+    createProject: (name: string) => Promise<{
         success: boolean;
-        url?: string;
-        manifestData?: PdfManifest;
+        project?: ProjectData;
+        error?: string;
+    }>;
+    getAllProjects: () => Promise<{
+        success: boolean;
+        projects?: ProjectData[];
+        error?: string;
+    }>;
+    getProject: (projectId: string) => Promise<{
+        success: boolean;
+        project?: ProjectData;
+        error?: string;
+    }>;
+    getLastProject: () => Promise<{
+        success: boolean;
+        project?: ProjectData | null;
+        error?: string;
+    }>;
+    setLastProject: (projectId: string | null) => Promise<{
+        success: boolean;
+        error?: string;
+    }>;
+    updateProject: (project: ProjectData) => Promise<{
+        success: boolean;
+        project?: ProjectData;
+        error?: string;
+    }>;
+    deleteProject: (projectId: string) => Promise<{
+        success: boolean;
+        error?: string;
+    }>;
+    getProjectDirectories: (projectId: string) => Promise<{
+        success: boolean;
+        directories?: ProjectDirectoriesData;
+        error?: string;
+    }>;
+    getSharedPdfDirectory: () => Promise<{
+        success: boolean;
+        directory?: string;
+        error?: string;
+    }>;
+    setSharedPdfDirectory: (directory: string) => Promise<{
+        success: boolean;
         error?: string;
     }>;
 
-    downloadManifest: (
-        url: string
-    ) => Promise<{
+    // PDF finder
+    findPdfs: (directory: string, recursive: boolean) => Promise<{
         success: boolean;
-        manifest?: PdfManifest;
+        files?: Array<{ path: string; name: string; size: number }>;
         error?: string;
     }>;
 }

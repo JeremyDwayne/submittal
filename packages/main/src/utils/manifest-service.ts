@@ -1,8 +1,9 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
-import { FormData, File, Blob } from 'node-fetch';
+import FormData from 'form-data';
 import { listPdfMetadata } from './pdf-metadata';
+require('dotenv').config();
 
 // Interface for manifest entries
 interface ManifestEntry {
@@ -120,8 +121,26 @@ export async function uploadManifest(manifestPath: string): Promise<{
 }> {
     try {
         // Configuration for the UploadThing API
-        const UPLOADTHING_API_KEY = process.env.UPLOADTHING_API_KEY || 'your-api-key-here';
-        const UPLOADTHING_APP_ID = process.env.UPLOADTHING_APP_ID || 'your-app-id-here';
+        let apiKey = 'your-api-key-here';
+        let appId = process.env.UPLOADTHING_APP_ID || 'your-app-id-here';
+
+        // Decode and extract API key from token
+        try {
+            const token = process.env.UPLOADTHING_TOKEN || '';
+            if (token) {
+                const decodedToken = Buffer.from(token, 'base64').toString('utf-8');
+                const tokenData = JSON.parse(decodedToken);
+                if (tokenData.apiKey) {
+                    apiKey = tokenData.apiKey;
+                }
+                if (tokenData.appId) {
+                    appId = tokenData.appId;
+                }
+            }
+        } catch (error) {
+            console.error('Error decoding UPLOADTHING_TOKEN:', error);
+        }
+
         const UPLOADTHING_URL = 'https://uploadthing.com/api/uploadFiles';
 
         // Get the filename
@@ -133,21 +152,18 @@ export async function uploadManifest(manifestPath: string): Promise<{
         // Read the file content
         const fileBuffer = await fs.readFile(manifestPath);
 
-        // Create a blob from the file buffer
-        const fileBlob = new Blob([fileBuffer], { type: 'application/json' });
-
-        // Create a file object
-        const file = new File([fileBlob], fileName, { type: 'application/json' });
-
-        // Add the file to the form data
-        formData.append('file', file);
+        // Add the file buffer directly to the form data with the file name
+        formData.append('file', fileBuffer, {
+            filename: fileName,
+            contentType: 'application/json'
+        });
 
         // Make the upload request to UploadThing
         const response = await fetch(UPLOADTHING_URL, {
             method: 'POST',
             headers: {
-                'X-API-Key': UPLOADTHING_API_KEY,
-                'X-App-Id': UPLOADTHING_APP_ID,
+                'X-API-Key': apiKey,
+                'X-App-Id': appId,
             },
             body: formData
         });

@@ -1,0 +1,280 @@
+.settings-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.settings-container {
+    background-color: #1f1f1f;
+    color: #e0e0e0;
+    border-radius: 8px;
+    padding: 24px;
+    width: 600px;
+    max-width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #333;
+}
+
+.settings-header h2 {
+    margin: 0;
+    font-size: 24px;
+    color: #fff;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    color: #a0a0a0;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.close-button:hover {
+    color: #e0e0e0;
+}
+
+.settings-message {
+    background-color: #2a2a2a;
+    padding: 12px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.message-close-button {
+    background: none;
+    border: none;
+    color: #a0a0a0;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.message-close-button:hover {
+    color: #e0e0e0;
+}
+
+.settings-section {
+    margin-bottom: 24px;
+}
+
+.settings-section h3 {
+    font-size: 18px;
+    margin-bottom: 16px;
+    color: #ccc;
+}
+
+.settings-group {
+    margin-bottom: 16px;
+}
+
+.settings-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #b0b0b0;
+}
+
+.settings-help {
+    margin-top: 4px;
+    font-size: 12px;
+    color: #888;
+}
+
+.input-group {
+    display: flex;
+    gap: 8px;
+}
+
+.input-group input {
+    flex: 1;
+    padding: 10px 12px;
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #e0e0e0;
+    font-size: 14px;
+}
+
+.input-group button {
+    padding: 8px 16px;
+    background-color: #3a3a3a;
+    color: #e0e0e0;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.input-group button:hover {
+    background-color: #444;
+}
+
+.input-group button:disabled {
+    background-color: #2a2a2a;
+    color: #666;
+    cursor: not-allowed;
+}
+
+.settings-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #333;
+}
+
+.reset-button {
+    padding: 10px 16px;
+    background-color: #6b2b2b;
+    color: #e0e0e0;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.reset-button:hover {
+    background-color: #893535;
+}
+
+.reset-button:disabled {
+    background-color: #3a3030;
+    color: #888;
+    cursor: not-allowed;
+}
+
+.save-button {
+    padding: 10px 16px;
+    background-color: #3d8aff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.save-button:hover {
+    background-color: #2b78f0;
+}
+
+.save-button:disabled {
+    background-color: #2a5a9e;
+    color: #ccc;
+    cursor: not-allowed;
+}
+
+@media (prefers-color-scheme: light) {
+    .settings-container {
+        background-color: #f5f5f5;
+        color: #333;
+    }
+
+    .settings-header {
+        border-bottom-color: #ddd;
+    }
+
+    .settings-header h2 {
+        color: #333;
+    }
+
+    .close-button,
+    .message-close-button {
+        color: #666;
+    }
+
+    .close-button:hover,
+    .message-close-button:hover {
+        color: #333;
+    }
+
+    .settings-message {
+        background-color: #eaeaea;
+    }
+
+    .settings-section h3 {
+        color: #444;
+    }
+
+    .settings-group label {
+        color: #555;
+    }
+
+    .settings-help {
+        color: #777;
+    }
+
+    .input-group input {
+        background-color: #fff;
+        border-color: #ddd;
+        color: #333;
+    }
+
+    .input-group button {
+        background-color: #e0e0e0;
+        color: #333;
+    }
+
+    .input-group button:hover {
+        background-color: #d0d0d0;
+    }
+
+    .input-group button:disabled {
+        background-color: #f0f0f0;
+        color: #999;
+    }
+
+    .settings-actions {
+        border-top-color: #ddd;
+    }
+
+    .reset-button {
+        background-color: #ff6b6b;
+        color: #fff;
+    }
+
+    .reset-button:hover {
+        background-color: #e05c5c;
+    }
+
+    .reset-button:disabled {
+        background-color: #ffb8b8;
+        color: #e0e0e0;
+    }
+
+    .save-button {
+        background-color: #0066ff;
+    }
+
+    .save-button:hover {
+        background-color: #0055cc;
+    }
+
+    .save-button:disabled {
+        background-color: #99c2ff;
+        color: #fff;
+    }
+}

@@ -381,4 +381,200 @@ contextBridge.exposeInMainWorld('electron', {
 
   // External URL handling
   openExternalUrl: (url: string): Promise<void> => ipcRenderer.invoke('url:open-external', url),
+
+  // Recursive PDF finder
+  findPdfFilesRecursively: (
+    directory: string,
+    options?: {
+      includeSubdirectories?: boolean;
+      skipHiddenDirectories?: boolean;
+    }
+  ): Promise<{
+    success: boolean;
+    pdfFiles?: string[];
+    fileInfo?: Array<{ path: string; name: string; size: number }>;
+    error?: string;
+  }> => ipcRenderer.invoke('pdfs:find-recursive', directory, options),
+
+  // Settings management
+  getSettings: (): Promise<{
+    success: boolean;
+    settings?: {
+      directories: {
+        defaultPdfDirectory: string | null;
+        defaultOutputDirectory: string | null;
+      };
+      preferences: {
+        rememberLastProject: boolean;
+        autoScanDirectory: boolean;
+      };
+      lastSession: {
+        pdfDirectory: string | null;
+        outputDirectory: string | null;
+        projectName: string | null;
+      };
+    };
+    error?: string;
+  }> => ipcRenderer.invoke('settings:get'),
+
+  setDirectorySettings: (settings: {
+    defaultPdfDirectory?: string | null;
+    defaultOutputDirectory?: string | null;
+  }): Promise<{
+    success: boolean;
+    error?: string;
+  }> => ipcRenderer.invoke('settings:set-directories', settings),
+
+  setPreferenceSettings: (settings: {
+    rememberLastProject?: boolean;
+    autoScanDirectory?: boolean;
+  }): Promise<{
+    success: boolean;
+    error?: string;
+  }> => ipcRenderer.invoke('settings:set-preferences', settings),
+
+  setLastSession: (sessionInfo: {
+    pdfDirectory?: string | null;
+    outputDirectory?: string | null;
+    projectName?: string | null;
+  }): Promise<{
+    success: boolean;
+    error?: string;
+  }> => ipcRenderer.invoke('settings:set-last-session', sessionInfo),
+
+  getDefaultDirectories: (projectName?: string): Promise<{
+    success: boolean;
+    directories?: {
+      pdfDirectory: string | null;
+      outputDirectory: string | null;
+    };
+    error?: string;
+  }> => ipcRenderer.invoke('settings:get-defaults', projectName),
+
+  resetSettings: (): Promise<{
+    success: boolean;
+    error?: string;
+  }> => ipcRenderer.invoke('settings:reset'),
+
+  // Project management
+  createProject: (name: string): Promise<{
+    success: boolean;
+    project?: {
+      id: string;
+      name: string;
+      createdAt: string;
+      lastAccessedAt: string;
+      directories: {
+        root: string;
+        output: string;
+      };
+    };
+    error?: string;
+  }> => ipcRenderer.invoke('project:create', name),
+
+  getAllProjects: (): Promise<{
+    success: boolean;
+    projects?: Array<{
+      id: string;
+      name: string;
+      createdAt: string;
+      lastAccessedAt: string;
+      directories: {
+        root: string;
+        output: string;
+      };
+    }>;
+    error?: string;
+  }> => ipcRenderer.invoke('project:get-all'),
+
+  getProject: (projectId: string): Promise<{
+    success: boolean;
+    project?: {
+      id: string;
+      name: string;
+      createdAt: string;
+      lastAccessedAt: string;
+      directories: {
+        root: string;
+        output: string;
+      };
+    };
+    error?: string;
+  }> => ipcRenderer.invoke('project:get', projectId),
+
+  getLastProject: (): Promise<{
+    success: boolean;
+    project?: {
+      id: string;
+      name: string;
+      createdAt: string;
+      lastAccessedAt: string;
+      directories: {
+        root: string;
+        output: string;
+      };
+    } | null;
+    error?: string;
+  }> => ipcRenderer.invoke('project:get-last'),
+
+  setLastProject: (projectId: string | null): Promise<{
+    success: boolean;
+    error?: string;
+  }> => ipcRenderer.invoke('project:set-last', projectId),
+
+  updateProject: (project: {
+    id: string;
+    name: string;
+    createdAt: string;
+    lastAccessedAt: string;
+    directories: {
+      root: string;
+      output: string;
+    };
+  }): Promise<{
+    success: boolean;
+    project?: {
+      id: string;
+      name: string;
+      createdAt: string;
+      lastAccessedAt: string;
+      directories: {
+        root: string;
+        output: string;
+      };
+    };
+    error?: string;
+  }> => ipcRenderer.invoke('project:update', project),
+
+  deleteProject: (projectId: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> => ipcRenderer.invoke('project:delete', projectId),
+
+  getProjectDirectories: (projectId: string): Promise<{
+    success: boolean;
+    directories?: {
+      pdfDirectory: string;
+      outputDirectory: string;
+    };
+    error?: string;
+  }> => ipcRenderer.invoke('project:get-directories', projectId),
+
+  getSharedPdfDirectory: (): Promise<{
+    success: boolean;
+    directory?: string;
+    error?: string;
+  }> => ipcRenderer.invoke('project:get-shared-pdf-dir'),
+
+  setSharedPdfDirectory: (directory: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> => ipcRenderer.invoke('project:set-shared-pdf-dir', directory),
+
+  // Add PDF finder function
+  findPdfs: (directory: string, recursive: boolean): Promise<{
+    success: boolean;
+    files?: Array<{ path: string; name: string; size: number }>;
+    error?: string;
+  }> => ipcRenderer.invoke('pdf:find', directory, recursive),
 }); 

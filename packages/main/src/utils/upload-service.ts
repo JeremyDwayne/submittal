@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import fetch from 'node-fetch';
-import { FormData, File, Blob } from 'node-fetch';
+import FormData from 'form-data';
 import {
     getPdfMetadata,
     updatePdfMetadata,
@@ -9,29 +9,42 @@ import {
     PdfMetadata,
     listPdfMetadata
 } from './pdf-metadata';
+require('dotenv').config();
 
-// UploadThing API response types
-interface UploadThingSuccessResponse {
-    data: {
+// Configuration for the UploadThing API
+// The UPLOADTHING_TOKEN is a base64 encoded JSON string with apiKey and appId
+const UPLOADTHING_TOKEN = process.env.UPLOADTHING_TOKEN || '';
+
+// Decode and extract the actual API key and app ID
+let UPLOADTHING_API_KEY = 'your-api-key-here';
+let UPLOADTHING_APP_ID = process.env.UPLOADTHING_APP_ID || 'your-app-id-here';
+
+try {
+    if (UPLOADTHING_TOKEN) {
+        const decodedToken = Buffer.from(UPLOADTHING_TOKEN, 'base64').toString('utf-8');
+        const tokenData = JSON.parse(decodedToken);
+        if (tokenData.apiKey) {
+            UPLOADTHING_API_KEY = tokenData.apiKey;
+        }
+        if (tokenData.appId) {
+            UPLOADTHING_APP_ID = tokenData.appId;
+        }
+    }
+} catch (error) {
+    console.error('Error decoding UPLOADTHING_TOKEN:', error);
+}
+
+// Response type for UploadThing API
+interface UploadThingResponse {
+    data?: {
         url: string;
         key: string;
     };
+    error?: string;
 }
-
-interface UploadThingErrorResponse {
-    error: string;
-}
-
-type UploadThingResponse = UploadThingSuccessResponse | UploadThingErrorResponse;
-
-// Configuration for the UploadThing API
-// This should be set by environment variables in a real app
-const UPLOADTHING_API_KEY = process.env.UPLOADTHING_API_KEY || 'your-api-key-here';
-const UPLOADTHING_APP_ID = process.env.UPLOADTHING_APP_ID || 'your-app-id-here';
-const UPLOADTHING_URL = 'https://uploadthing.com/api/uploadFiles';
 
 /**
- * Uploads a single file to UploadThing
+ * Uploads a single file to UploadThing using the official SDK
  */
 export async function uploadSingleFile(
     filePath: string,
@@ -59,44 +72,37 @@ export async function uploadSingleFile(
             };
         }
 
-        // Create form data for the upload
-        const formData = new FormData();
-
         // Read the file content
         const fileBuffer = await fs.readFile(filePath);
 
-        // Create a blob from the file buffer
-        const fileBlob = new Blob([fileBuffer], { type: 'application/pdf' });
+        try {
+            // Perform the upload using form-data and node-fetch
+            const formData = new FormData();
+            formData.append('file', fileBuffer, {
+                filename: fileName,
+                contentType: 'application/pdf'
+            });
 
-        // Create a file object
-        const file = new File([fileBlob], fileName, { type: 'application/pdf' });
+            const response = await fetch('https://uploadthing.com/api/uploadFiles', {
+                method: 'POST',
+                headers: {
+                    'X-API-Key': UPLOADTHING_API_KEY,
+                    'X-App-Id': UPLOADTHING_APP_ID
+                },
+                body: formData
+            });
 
-        // Add the file to the form data
-        formData.append('file', file);
+            if (!response.ok) {
+                throw new Error(`Upload failed with status: ${response.status}`);
+            }
 
-        // Make the upload request to UploadThing
-        const response = await fetch(UPLOADTHING_URL, {
-            method: 'POST',
-            headers: {
-                'X-API-Key': UPLOADTHING_API_KEY,
-                'X-App-Id': UPLOADTHING_APP_ID,
-            },
-            body: formData
-        });
+            const result = await response.json() as UploadThingResponse;
 
-        // Parse the response
-        const result = await response.json() as UploadThingResponse;
+            if (!result.data || !result.data.url) {
+                throw new Error(result.error || 'Invalid response format from uploadthing');
+            }
 
-        if (!response.ok) {
-            return {
-                success: false,
-                error: 'error' in result ? result.error : 'Upload failed'
-            };
-        }
-
-        // Type guard to check if result is a success response
-        if ('data' in result && result.data && result.data.url) {
-            // Success! Update metadata and return the remote URL
+            const fileUrl = result.data.url;
 
             // If we have manufacturer and part number, update the metadata
             if (manufacturer && partNumber) {
@@ -104,12 +110,12 @@ export async function uploadSingleFile(
                     partNumber,
                     manufacturer,
                     filePath,
-                    result.data.url
+                    fileUrl
                 );
 
                 return {
                     success: true,
-                    url: result.data.url,
+                    url: fileUrl,
                     metadata
                 };
             }
@@ -117,14 +123,15 @@ export async function uploadSingleFile(
             // Otherwise just return the URL without updating metadata
             return {
                 success: true,
-                url: result.data.url
+                url: fileUrl
+            };
+        } catch (uploadError) {
+            console.error(`Error during upload of ${filePath}:`, uploadError);
+            return {
+                success: false,
+                error: uploadError instanceof Error ? uploadError.message : String(uploadError)
             };
         }
-
-        return {
-            success: false,
-            error: 'Invalid response from server'
-        };
     } catch (error) {
         console.error(`Error uploading file ${filePath}:`, error);
         return {
@@ -220,7 +227,7 @@ export async function uploadDirectoryPdfs(
                         };
                     }
 
-                    // Upload the file
+                    // Upload the file using our single file upload function
                     const uploadResult = await uploadSingleFile(
                         filePath,
                         manufacturer ?? metadata?.manufacturer,
@@ -233,39 +240,34 @@ export async function uploadDirectoryPdfs(
                             fileName,
                             isUploaded: true,
                             remoteUrl: uploadResult.url,
-                            wasSkipped: false,
-                            manufacturer: uploadResult.metadata?.manufacturer ?? manufacturer,
-                            partNumber: uploadResult.metadata?.partNumber ?? partNumber
+                            manufacturer: uploadResult.metadata?.manufacturer,
+                            partNumber: uploadResult.metadata?.partNumber
                         };
                     } else {
                         return {
                             filePath,
                             fileName,
                             isUploaded: false,
-                            error: uploadResult.error,
-                            wasSkipped: false,
-                            manufacturer,
-                            partNumber
+                            error: uploadResult.error
                         };
                     }
-                } catch (error) {
+                } catch (fileError) {
                     return {
                         filePath,
                         fileName,
                         isUploaded: false,
-                        error: error instanceof Error ? error.message : String(error),
-                        wasSkipped: false
+                        error: fileError instanceof Error ? fileError.message : String(fileError)
                     };
                 }
             })
         );
 
-        // Calculate summary
+        // Calculate summary stats
         const summary = {
             total: results.length,
             uploaded: results.filter(r => r.isUploaded && !r.wasSkipped).length,
-            skipped: results.filter(r => r.wasSkipped).length,
-            failed: results.filter(r => !r.isUploaded).length
+            failed: results.filter(r => !r.isUploaded).length,
+            skipped: results.filter(r => r.wasSkipped).length
         };
 
         return {
@@ -297,37 +299,63 @@ export async function getUploadedFiles(): Promise<PdfMetadata[]> {
 }
 
 /**
- * Deletes a file from remote storage (and removes its URL from the metadata)
- * Note: This is a simplified version that only updates local cache
- * UploadThing might not support actual remote deletion via API
+ * Delete a file from remote storage by its local path
  */
 export async function deleteRemoteFile(filePath: string): Promise<boolean> {
     try {
+        // Get the metadata for the file to find its remote URL
         const metadata = await getPdfMetadata(filePath);
 
-        if (!metadata) {
-            console.error(`File not found in metadata: ${filePath}`);
+        if (!metadata || !metadata.remoteUrl) {
+            console.error('No metadata or remote URL found for file:', filePath);
             return false;
         }
 
-        if (!metadata.remoteUrl) {
-            console.error(`File doesn't have a remote URL: ${filePath}`);
+        // Extract the file key from the URL - the last part of the path
+        const urlParts = new URL(metadata.remoteUrl);
+        const pathSegments = urlParts.pathname.split('/');
+        const fileKey = pathSegments[pathSegments.length - 1];
+
+        if (!fileKey) {
+            console.error('Could not extract file key from URL:', metadata.remoteUrl);
             return false;
         }
 
-        // In a real implementation, you would call the UploadThing API to delete the file
-        // For now, we'll just update our local metadata to remove the remote URL
+        try {
+            // Make a DELETE request to the UploadThing API
+            const response = await fetch(`https://uploadthing.com/api/deleteFile?fileKey=${fileKey}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-API-Key': UPLOADTHING_API_KEY,
+                    'X-App-Id': UPLOADTHING_APP_ID
+                }
+            });
 
-        // Update the metadata to remove the remote URL but keep other metadata
-        await updatePdfMetadata(
-            metadata.partNumber,
-            metadata.manufacturer,
-            metadata.localPath
-        );
+            if (!response.ok) {
+                throw new Error(`Delete failed with status: ${response.status}`);
+            }
 
-        return true;
+            const result = await response.json() as UploadThingResponse;
+
+            if (result.error) {
+                throw new Error(result.error);
+            }
+
+            // If successful, remove the remote URL from the metadata
+            await updatePdfMetadata(
+                metadata.partNumber,
+                metadata.manufacturer,
+                metadata.localPath
+                // No remote URL - this removes it
+            );
+
+            return true;
+        } catch (deleteError) {
+            console.error('Error deleting remote file:', deleteError);
+            return false;
+        }
     } catch (error) {
-        console.error(`Error deleting remote file: ${filePath}`, error);
+        console.error('Error in deleteRemoteFile:', error);
         return false;
     }
 } 

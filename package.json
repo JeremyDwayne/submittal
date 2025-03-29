@@ -32,10 +32,13 @@
     "prettier": "^3.2.1"
   },
   "dependencies": {
+    "@types/node-fetch": "^2.6.4",
     "@types/pdfkit": "^0.13.9",
     "@uploadthing/react": "^7.3.0",
     "csv-parse": "^5.6.0",
-    "node-fetch": "^3.3.2",
+    "dotenv": "^16.4.7",
+    "form-data": "^4.0.2",
+    "node-fetch": "^2.6.7",
     "pdf-lib": "^1.17.1",
     "pdfkit": "^0.16.0",
     "uploadthing": "^7.6.0"

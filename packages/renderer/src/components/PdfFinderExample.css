@@ -1,0 +1,295 @@
+.pdf-finder-example {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #1a1a1a;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.pdf-finder-example h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #fff;
+    font-size: 1.5rem;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+}
+
+.directory-selection {
+    margin-bottom: 20px;
+}
+
+.input-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.directory-path {
+    padding: 6px 10px;
+    background-color: #2d2d2d;
+    border-radius: 4px;
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.directory-path span {
+    color: #aaa;
+    margin-right: 6px;
+}
+
+.directory-path code {
+    color: #c2e7ff;
+    font-family: monospace;
+}
+
+.select-directory-button {
+    padding: 8px 16px;
+    background-color: #2a3f54;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.select-directory-button:hover {
+    background-color: #3a567a;
+}
+
+.options {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 15px;
+}
+
+.option-label {
+    display: flex;
+    align-items: center;
+    color: #ddd;
+    cursor: pointer;
+}
+
+.option-label input {
+    margin-right: 8px;
+}
+
+.find-pdfs-button {
+    padding: 10px 20px;
+    background-color: #2e7d32;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+    width: 100%;
+}
+
+.find-pdfs-button:hover:not(:disabled) {
+    background-color: #388e3c;
+}
+
+.find-pdfs-button:disabled {
+    background-color: #4c6349;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.error-message {
+    margin: 15px 0;
+    padding: 12px;
+    background-color: rgba(211, 47, 47, 0.15);
+    border-left: 4px solid #d32f2f;
+    border-radius: 4px;
+}
+
+.error-message p {
+    margin: 0;
+    color: #ff6b6b;
+}
+
+.results-container {
+    margin-top: 25px;
+}
+
+.results-header {
+    margin-bottom: 12px;
+}
+
+.results-header h3 {
+    margin: 0;
+    color: #ddd;
+    font-size: 16px;
+}
+
+.file-list {
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 6px;
+    background-color: #2d2d2d;
+    border: 1px solid #444;
+}
+
+.file-list table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.file-list th,
+.file-list td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #444;
+}
+
+.file-list th {
+    background-color: #353535;
+    color: #eee;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.file-list tr:last-child td {
+    border-bottom: none;
+}
+
+.file-list tr:hover {
+    background-color: #353535;
+}
+
+.file-name {
+    color: #ddd;
+    font-family: monospace;
+    max-width: 400px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-size {
+    color: #8bc34a;
+    font-family: monospace;
+    width: 100px;
+}
+
+.file-actions {
+    width: 80px;
+}
+
+.open-file-button {
+    padding: 5px 10px;
+    background-color: #3f51b5;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s;
+}
+
+.open-file-button:hover {
+    background-color: #5c6bc0;
+}
+
+/* Light mode styles */
+@media (prefers-color-scheme: light) {
+    .pdf-finder-example {
+        background-color: #f9fafb;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .pdf-finder-example h2 {
+        color: #1f2937;
+        border-bottom-color: #e5e7eb;
+    }
+
+    .directory-path {
+        background-color: #f3f4f6;
+    }
+
+    .directory-path span {
+        color: #6b7280;
+    }
+
+    .directory-path code {
+        color: #0369a1;
+    }
+
+    .select-directory-button {
+        background-color: #0369a1;
+    }
+
+    .select-directory-button:hover {
+        background-color: #0284c7;
+    }
+
+    .option-label {
+        color: #4b5563;
+    }
+
+    .find-pdfs-button {
+        background-color: #047857;
+    }
+
+    .find-pdfs-button:hover:not(:disabled) {
+        background-color: #059669;
+    }
+
+    .find-pdfs-button:disabled {
+        background-color: #d1d5db;
+    }
+
+    .error-message {
+        background-color: rgba(220, 38, 38, 0.08);
+    }
+
+    .error-message p {
+        color: #b91c1c;
+    }
+
+    .results-header h3 {
+        color: #1f2937;
+    }
+
+    .file-list {
+        background-color: #fff;
+        border-color: #e5e7eb;
+    }
+
+    .file-list th,
+    .file-list td {
+        border-bottom-color: #e5e7eb;
+    }
+
+    .file-list th {
+        background-color: #f3f4f6;
+        color: #374151;
+    }
+
+    .file-list tr:hover {
+        background-color: #f3f4f6;
+    }
+
+    .file-name {
+        color: #1f2937;
+    }
+
+    .file-size {
+        color: #047857;
+    }
+
+    .open-file-button {
+        background-color: #4f46e5;
+    }
+
+    .open-file-button:hover {
+        background-color: #6366f1;
+    }
+}

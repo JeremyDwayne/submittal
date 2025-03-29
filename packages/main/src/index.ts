@@ -21,6 +21,30 @@ import {
 } from './utils/pdf-downloader';
 import { syncPdfs } from './utils/sync-service';
 import { createAndUploadManifest, downloadManifest } from './utils/manifest-service';
+import { findPdfFiles, getPdfInfo as getPdfInfoFromFinder } from './utils/pdf-file-finder';
+import {
+  getSettings,
+  setDirectorySettings,
+  setPreferenceSettings,
+  setLastSession,
+  getDefaultDirectories,
+  resetSettings
+} from './utils/settings-service';
+import {
+  initializeProjectSystem,
+  createProject,
+  getAllProjects,
+  getProject,
+  getLastProject,
+  setLastProject,
+  updateProject,
+  deleteProject,
+  getProjectDirectories,
+  getSharedPdfDirectory,
+  setSharedPdfDirectory,
+  Project
+} from './utils/project-manager';
+import { findPdfs } from './utils/pdf-finder';
 
 // Add session type definition
 interface SessionData {
@@ -62,6 +86,9 @@ const createDataDir = async (): Promise<string> => {
 };
 
 const createWindow = async (): Promise<void> => {
+  // Initialize project system
+  await initializeProjectSystem();
+
   const dataDir = await createDataDir();
   console.log('Data directory:', dataDir);
 
@@ -192,6 +219,34 @@ function registerIpcHandlers() {
   // Manifest related operations
   ipcMain.handle('manifest:create', handleCreateManifest);
   ipcMain.handle('manifest:download', handleDownloadManifest);
+
+  // PDF Finder operations
+  ipcMain.handle('pdfs:find-recursive', handleFindPdfFilesRecursively);
+
+  // Settings management
+  ipcMain.handle('settings:get', handleGetSettings);
+  ipcMain.handle('settings:set-directories', handleSetDirectorySettings);
+  ipcMain.handle('settings:set-preferences', handleSetPreferenceSettings);
+  ipcMain.handle('settings:set-last-session', handleSetLastSession);
+  ipcMain.handle('settings:get-defaults', handleGetDefaultDirectories);
+  ipcMain.handle('settings:reset', handleResetSettings);
+
+  // Project management
+  ipcMain.handle('project:create', handleCreateProject);
+  ipcMain.handle('project:get-all', handleGetAllProjects);
+  ipcMain.handle('project:get', handleGetProject);
+  ipcMain.handle('project:get-last', handleGetLastProject);
+  ipcMain.handle('project:set-last', handleSetLastProject);
+  ipcMain.handle('project:update', handleUpdateProject);
+  ipcMain.handle('project:delete', handleDeleteProject);
+  ipcMain.handle('project:get-directories', handleGetProjectDirectories);
+  ipcMain.handle('project:get-shared-pdf-dir', handleGetSharedPdfDirectory);
+  ipcMain.handle('project:set-shared-pdf-dir', handleSetSharedPdfDirectory);
+
+  // Add this handler for finding PDFs
+  ipcMain.handle('pdf:find', async (_: Electron.IpcMainInvokeEvent, directory: string, recursive: boolean) => {
+    return await findPdfs(directory, recursive);
+  });
 }
 
 app.whenReady().then(createWindow);
@@ -862,6 +917,365 @@ async function handleDownloadManifest(_event: IpcMainInvokeEvent, url: string) {
     };
   } catch (error) {
     console.error('Error downloading manifest:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles recursively finding PDF files in a directory
+ */
+async function handleFindPdfFilesRecursively(
+  _event: IpcMainInvokeEvent,
+  directory: string,
+  options?: {
+    includeSubdirectories?: boolean;
+    skipHiddenDirectories?: boolean;
+  }
+): Promise<{
+  success: boolean;
+  pdfFiles?: string[];
+  fileInfo?: Array<{ path: string; name: string; size: number }>;
+  error?: string;
+}> {
+  try {
+    // Verify directory exists
+    try {
+      await fs.access(directory);
+    } catch (error) {
+      return {
+        success: false,
+        error: `Directory does not exist: ${directory}`
+      };
+    }
+
+    // Find all PDF files
+    const pdfFiles = await findPdfFiles(directory, options);
+
+    // Get basic info about the files
+    const fileInfo = await getPdfInfoFromFinder(pdfFiles);
+
+    return {
+      success: true,
+      pdfFiles,
+      fileInfo
+    };
+  } catch (error) {
+    console.error('Error finding PDF files recursively:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles getting all settings
+ */
+async function handleGetSettings(_event: IpcMainInvokeEvent) {
+  try {
+    return {
+      success: true,
+      settings: getSettings()
+    };
+  } catch (error) {
+    console.error('Error getting settings:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles setting directory preferences
+ */
+async function handleSetDirectorySettings(_event: IpcMainInvokeEvent, dirSettings: {
+  defaultPdfDirectory?: string | null;
+  defaultOutputDirectory?: string | null;
+}) {
+  try {
+    setDirectorySettings(dirSettings);
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error setting directory settings:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles setting user preferences
+ */
+async function handleSetPreferenceSettings(_event: IpcMainInvokeEvent, prefSettings: {
+  rememberLastProject?: boolean;
+  autoScanDirectory?: boolean;
+}) {
+  try {
+    setPreferenceSettings(prefSettings);
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error setting preference settings:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles updating last session information
+ */
+async function handleSetLastSession(_event: IpcMainInvokeEvent, sessionInfo: {
+  pdfDirectory?: string | null;
+  outputDirectory?: string | null;
+  projectName?: string | null;
+}) {
+  try {
+    setLastSession(sessionInfo);
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error setting last session:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles getting default directories based on settings
+ */
+async function handleGetDefaultDirectories(_event: IpcMainInvokeEvent, projectName?: string) {
+  try {
+    const directories = await getDefaultDirectories(projectName);
+    return {
+      success: true,
+      directories
+    };
+  } catch (error) {
+    console.error('Error getting default directories:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles resetting all settings
+ */
+async function handleResetSettings(_event: IpcMainInvokeEvent) {
+  try {
+    resetSettings();
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error resetting settings:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles creating a new project
+ */
+async function handleCreateProject(_event: IpcMainInvokeEvent, name: string) {
+  try {
+    const project = await createProject(name);
+    return {
+      success: true,
+      project
+    };
+  } catch (error) {
+    console.error('Error creating project:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles getting all projects
+ */
+async function handleGetAllProjects(_event: IpcMainInvokeEvent) {
+  try {
+    const projects = getAllProjects();
+    return {
+      success: true,
+      projects
+    };
+  } catch (error) {
+    console.error('Error getting all projects:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles getting a project by ID
+ */
+async function handleGetProject(_event: IpcMainInvokeEvent, projectId: string) {
+  try {
+    const project = getProject(projectId);
+    if (!project) {
+      return {
+        success: false,
+        error: `Project with ID ${projectId} not found`
+      };
+    }
+    return {
+      success: true,
+      project
+    };
+  } catch (error) {
+    console.error('Error getting project:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles getting the last used project
+ */
+async function handleGetLastProject(_event: IpcMainInvokeEvent) {
+  try {
+    const project = getLastProject();
+    return {
+      success: true,
+      project: project || null
+    };
+  } catch (error) {
+    console.error('Error getting last project:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles setting the last used project
+ */
+async function handleSetLastProject(_event: IpcMainInvokeEvent, projectId: string | null) {
+  try {
+    setLastProject(projectId);
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error setting last project:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles updating a project
+ */
+async function handleUpdateProject(_event: IpcMainInvokeEvent, project: Project) {
+  try {
+    const updatedProject = await updateProject(project);
+    return {
+      success: true,
+      project: updatedProject
+    };
+  } catch (error) {
+    console.error('Error updating project:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles deleting a project
+ */
+async function handleDeleteProject(_event: IpcMainInvokeEvent, projectId: string) {
+  try {
+    const success = deleteProject(projectId);
+    return {
+      success
+    };
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles getting the default directories for a project
+ */
+async function handleGetProjectDirectories(_event: IpcMainInvokeEvent, projectId: string) {
+  try {
+    const directories = getProjectDirectories(projectId);
+    return {
+      success: true,
+      directories
+    };
+  } catch (error) {
+    console.error('Error getting project directories:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles getting the shared PDF directory
+ */
+async function handleGetSharedPdfDirectory(_event: IpcMainInvokeEvent) {
+  try {
+    const directory = getSharedPdfDirectory();
+    return {
+      success: true,
+      directory
+    };
+  } catch (error) {
+    console.error('Error getting shared PDF directory:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * Handles setting the shared PDF directory
+ */
+async function handleSetSharedPdfDirectory(_event: IpcMainInvokeEvent, directory: string) {
+  try {
+    setSharedPdfDirectory(directory);
+    return {
+      success: true
+    };
+  } catch (error) {
+    console.error('Error setting shared PDF directory:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error)

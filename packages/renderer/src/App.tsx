@@ -1,1017 +1,446 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import './App.css';
+import Settings from './components/Settings';
+import ProjectSelector from './components/ProjectSelector';
 
-// Extend MatchResult to support manual overrides
-type MatchResult = {
-  manufacturer: string;
-  partNumber: string;
-  matched: boolean;
-  pdfPath?: string;
-  fileName?: string;
-  overridden?: boolean; // Flag to indicate manually overridden matches
-};
-
-type ResultSummary = {
-  total: number;
-  matched: number;
-  notFound: number;
-};
-
-type UploadResult = {
-  filePath: string;
-  fileName: string;
-  isUploaded: boolean;
-  remoteUrl?: string;
-  error?: string;
-  wasSkipped?: boolean;
-  manufacturer?: string;
-  partNumber?: string;
-};
-
-type UploadSummary = {
-  total: number;
-  uploaded: number;
-  failed: number;
-  skipped: number;
-};
-
-// Updated to match the PdfMetadata interface from the main process
-type UploadedFile = {
-  partNumber: string;
-  manufacturer: string;
-  localPath: string;
-  remoteUrl?: string;
-  versionHash: string;
-  fileSize: number;
-  lastUpdated: string;
-  fileName: string;
-};
+// Define the types for our application
+interface PdfFile {
+  path: string;
+  name: string;
+  size: number;
+}
 
 function App() {
-  const [pdfFiles, setPdfFiles] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  // State for main functionality
   const [pdfDirectory, setPdfDirectory] = useState<string | null>(null);
-  const [csvFilePath, setCsvFilePath] = useState<string | null>(null);
-  const [results, setResults] = useState<ResultSummary | null>(null);
-  const [detailedResults, setDetailedResults] = useState<MatchResult[]>([]);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [outputDirectory, setOutputDirectory] = useState<string | null>(null);
-  const [sessionFile, setSessionFile] = useState<string | null>(null);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [activeTab, setActiveTab] = useState<'match' | 'uploads'>('match');
-  const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
-  const [uploadSummary, setUploadSummary] = useState<UploadSummary | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [isLoadingUploads, setIsLoadingUploads] = useState(false);
+  const [projectName, setProjectName] = useState<string>('');
+  const [message, setMessage] = useState<string>('');
+  const [fileName, setFileName] = useState<string>('submittal.pdf');
+  const [recursiveSearch, setRecursiveSearch] = useState(false);
+  const [pdfFiles, setPdfFiles] = useState<PdfFile[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Track changes to determine if session needs saving
+  // Add active tab state
+  const [activeTab, setActiveTab] = useState<'pdfs' | 'csv' | 'sync' | 'manual'>('pdfs');
+
+  // State for project management
+  const [showSettings, setShowSettings] = useState(false);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [projectLoading, setProjectLoading] = useState(true);
+  const [showProjectSelector, setShowProjectSelector] = useState(false);
+
+  // Load project on startup
   useEffect(() => {
-    if (detailedResults.length > 0) {
-      setHasChanges(true);
-    }
-  }, [detailedResults, pdfDirectory, csvFilePath, outputDirectory]);
+    const loadLastProject = async () => {
+      try {
+        setProjectLoading(true);
+        const result = await window.electron.getLastProject();
 
-  // Load uploaded files when the uploads tab is selected
-  useEffect(() => {
-    if (activeTab === 'uploads') {
-      loadUploadedFiles();
-    }
-  }, [activeTab]);
+        if (result.success && result.project) {
+          setProjectId(result.project.id);
+          setProjectName(result.project.name);
 
-  const loadUploadedFiles = async () => {
-    setIsLoadingUploads(true);
+          // Load project directories
+          const dirResult = await window.electron.getProjectDirectories(result.project.id);
+          if (dirResult.success && dirResult.directories) {
+            setPdfDirectory(dirResult.directories.pdfDirectory);
+            setOutputDirectory(dirResult.directories.outputDirectory);
+          }
+        } else {
+          // No last project, show project selector
+          setShowProjectSelector(true);
+        }
+      } catch (err) {
+        console.error('Error loading last project:', err);
+        setShowProjectSelector(true);
+      } finally {
+        setProjectLoading(false);
+      }
+    };
+
+    loadLastProject();
+  }, []);
+
+  // Handle project selection
+  const handleProjectSelected = async (selectedProjectId: string) => {
     try {
-      const result = await window.electron.listUploads();
-      if (result.success && result.uploads) {
-        // Convert the PdfMetadata to the UploadedFile type
-        const files: UploadedFile[] = result.uploads.map(upload => ({
-          partNumber: upload.partNumber,
-          manufacturer: upload.manufacturer,
-          localPath: upload.localPath,
-          remoteUrl: upload.remoteUrl,
-          versionHash: upload.versionHash,
-          fileSize: upload.fileSize,
-          lastUpdated: upload.lastUpdated,
-          fileName: upload.fileName
-        }));
-        setUploadedFiles(files);
+      setProjectLoading(true);
+
+      const projectResult = await window.electron.getProject(selectedProjectId);
+      if (projectResult.success && projectResult.project) {
+        setProjectId(selectedProjectId);
+        setProjectName(projectResult.project.name);
+
+        // Load project directories
+        const dirResult = await window.electron.getProjectDirectories(selectedProjectId);
+        if (dirResult.success && dirResult.directories) {
+          setPdfDirectory(dirResult.directories.pdfDirectory);
+          setOutputDirectory(dirResult.directories.outputDirectory);
+        }
+
+        setShowProjectSelector(false);
+      }
+    } catch (err) {
+      console.error('Error selecting project:', err);
+    } finally {
+      setProjectLoading(false);
+    }
+  };
+
+  // Scan PDF directory to find PDF files
+  const scanPdfDirectory = async (directory: string) => {
+    try {
+      setMessage('Searching for PDF files...');
+      setIsProcessing(true);
+
+      const result = await window.electron.findPdfs(directory, recursiveSearch);
+
+      if (result.success && result.files) {
+        setMessage(`Found ${result.files.length} PDF files in ${directory}`);
+        setPdfFiles(result.files);
       } else {
-        setMessage(`Error loading uploads: ${result.error}`);
+        setMessage(`Error: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Error loading uploads:', error);
+      console.error('Error scanning PDF directory:', error);
       setMessage(`Error: ${(error as Error).message}`);
     } finally {
-      setIsLoadingUploads(false);
+      setIsProcessing(false);
     }
   };
 
-  const selectPdfDirectory = async () => {
+  // Select PDF directory
+  const selectPdfDirectory = useCallback(async () => {
     try {
       const directory = await window.electron.selectFolder();
+
       if (directory) {
         setPdfDirectory(directory);
-        setHasChanges(true);
-        scanPdfDirectory(directory);
+        setMessage(`PDF directory selected: ${directory}`);
+
+        // Scan the directory for PDF files
+        await scanPdfDirectory(directory);
+
+        if (projectId && directory) {
+          // Save to project settings
+          await window.electron.updateProject({
+            id: projectId,
+            name: projectName,
+            createdAt: '', // Will be ignored by the backend
+            lastAccessedAt: '', // Will be updated by the backend
+            directories: {
+              root: directory,
+              output: outputDirectory || ''
+            }
+          });
+        }
       }
     } catch (error) {
-      console.error('Error selecting directory:', error);
+      console.error('Error selecting PDF directory:', error);
       setMessage(`Error: ${(error as Error).message}`);
     }
-  };
+  }, [pdfDirectory, projectId, projectName, outputDirectory, recursiveSearch]);
 
-  const selectCsvFile = async () => {
-    try {
-      const filePath = await window.electron.selectFile('.csv');
-      if (filePath) {
-        setCsvFilePath(filePath);
-        setHasChanges(true);
-        setMessage(`CSV file selected: ${filePath.split('/').pop()}`);
-      }
-    } catch (error) {
-      console.error('Error selecting CSV file:', error);
-      setMessage(`Error: ${(error as Error).message}`);
-    }
-  };
-
-  const selectOutputDirectory = async () => {
+  // Select output directory
+  const selectOutputDirectory = useCallback(async () => {
     try {
       const directory = await window.electron.selectFolder();
+
       if (directory) {
         setOutputDirectory(directory);
-        setHasChanges(true);
-        const fileName = generateDefaultFileName();
         const fullPath = `${directory}/${fileName}`;
         setMessage(`Output location selected: ${fullPath}`);
+
+        if (projectId && directory) {
+          // Save to project settings
+          await window.electron.updateProject({
+            id: projectId,
+            name: projectName,
+            createdAt: '', // Will be ignored by the backend
+            lastAccessedAt: '', // Will be updated by the backend
+            directories: {
+              root: pdfDirectory || '',
+              output: directory
+            }
+          });
+        }
       }
     } catch (error) {
       console.error('Error selecting output directory:', error);
       setMessage(`Error: ${(error as Error).message}`);
     }
-  };
+  }, [outputDirectory, projectId, projectName, pdfDirectory, fileName]);
 
-  const generateDefaultFileName = () => {
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
-    return `Submittal-${dateStr}.pdf`;
-  };
-
-  const processBom = async () => {
-    if (!csvFilePath) {
-      setMessage('Please select a CSV file first');
-      return;
-    }
-
-    if (!pdfDirectory) {
-      setMessage('Please select a PDF directory first');
-      return;
-    }
-
-    setIsLoading(true);
-    setResults(null);
-    setDetailedResults([]);
-    setHasChanges(true);
-
-    try {
-      const result = await window.electron.processBom(csvFilePath, pdfDirectory);
-
-      if (result.success && result.summary) {
-        setResults(result.summary);
-
-        if (result.results) {
-          setDetailedResults(result.results);
-        }
-
-        setMessage(
-          `Processed ${result.summary.total} items: ` +
-          `${result.summary.matched} matched, ` +
-          `${result.summary.notFound} not found`
-        );
-      } else {
-        setMessage(result.error || 'Failed to process BOM');
-      }
-    } catch (error) {
-      console.error('Error processing BOM:', error);
-      setMessage(`Error: ${(error as Error).message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const scanPdfDirectory = async (directory: string) => {
-    setIsLoading(true);
-    try {
-      const result = await window.electron.scanPdfDirectory(directory);
-
-      if (result.success && result.pdfFiles) {
-        // Just get the filenames
-        const fileNames = result.pdfFiles.map(pdf => pdf.fileName);
-        setPdfFiles(fileNames);
-        setMessage(`Found ${fileNames.length} PDF files in directory`);
-      } else {
-        setMessage(result.error || 'Error scanning directory');
-      }
-    } catch (error) {
-      console.error('Error scanning directory:', error);
-      setMessage(`Error: ${(error as Error).message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Function to create the merged PDF
   const createMergedPdf = async () => {
-    if (detailedResults.length === 0) {
-      setMessage('No results to merge');
-      return;
-    }
-
-    const matchedResults = detailedResults.filter(result => result.matched && result.pdfPath);
-
-    if (matchedResults.length === 0) {
-      setMessage('No matched PDFs to merge');
-      return;
-    }
-
-    setIsGeneratingPdf(true);
-    setMessage('Generating merged PDF...');
-
     try {
-      // Get paths of all matched PDFs
-      const pdfPaths = matchedResults.map(result => result.pdfPath as string);
-
-      // Create product info array for the table of contents
-      const productInfo = matchedResults.map(result => ({
-        manufacturer: result.manufacturer,
-        partNumber: result.partNumber,
-        fileName: result.fileName
-      }));
-
-      // Call the main process to merge PDFs, passing the user-selected output directory if available
-      const result = await window.electron.createMergedPdf(
-        pdfPaths,
-        productInfo,
-        outputDirectory || undefined
-      );
-
-      if (result.success) {
-        setMessage(`Merged PDF created successfully: ${result.outputPath}`);
-
-        // Open the PDF automatically
-        if (result.outputPath) {
-          await window.electron.openFile(result.outputPath);
-        }
-      } else {
-        setMessage(`Error creating merged PDF: ${result.error}`);
-      }
-    } catch (error) {
-      console.error('Error merging PDFs:', error);
-      setMessage(`Error: ${(error as Error).message}`);
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
-
-  // Function to manually override a PDF match
-  const overrideMatch = async (index: number) => {
-    try {
-      // Get the current result
-      const result = detailedResults[index];
-
-      // Select a replacement PDF file
-      const pdfPath = await window.electron.selectFile('.pdf');
-
-      if (!pdfPath) {
-        return; // User canceled
-      }
-
-      // Get the filename from the path
-      const fileName = pdfPath.split('/').pop() || '';
-
-      // Update the result with the new match
-      const updatedResults = [...detailedResults];
-      updatedResults[index] = {
-        ...result,
-        matched: true,
-        pdfPath,
-        fileName,
-        overridden: true // Mark as manually overridden
-      };
-
-      setDetailedResults(updatedResults);
-
-      // Update the summary
-      if (results) {
-        const matched = updatedResults.filter(r => r.matched).length;
-        const notFound = updatedResults.length - matched;
-        setResults({
-          ...results,
-          matched,
-          notFound
-        });
-      }
-
-      setMessage(`Override successful: ${result.manufacturer} ${result.partNumber} → ${fileName}`);
-      setHasChanges(true);
-    } catch (error) {
-      console.error('Error overriding match:', error);
-      setMessage(`Error: ${(error as Error).message}`);
-    }
-  };
-
-  // Function to clear a manual override
-  const clearOverride = (index: number) => {
-    try {
-      // Get the current result
-      const result = detailedResults[index];
-
-      if (!result.overridden) {
-        return; // Not an override, nothing to clear
-      }
-
-      // Reset to unmatched
-      const updatedResults = [...detailedResults];
-      updatedResults[index] = {
-        ...result,
-        matched: false,
-        pdfPath: undefined,
-        fileName: undefined,
-        overridden: undefined
-      };
-
-      setDetailedResults(updatedResults);
-
-      // Update the summary
-      if (results) {
-        const matched = updatedResults.filter(r => r.matched).length;
-        const notFound = updatedResults.length - matched;
-        setResults({
-          ...results,
-          matched,
-          notFound
-        });
-      }
-
-      setMessage(`Override cleared for: ${result.manufacturer} ${result.partNumber}`);
-      setHasChanges(true);
-    } catch (error) {
-      console.error('Error clearing override:', error);
-      setMessage(`Error: ${(error as Error).message}`);
-    }
-  };
-
-  // Save current session to a JSON file
-  const saveSession = async () => {
-    if (!pdfDirectory || !csvFilePath) {
-      setMessage('Please select both PDF directory and CSV file before saving');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Create session data
-      const sessionData: SessionData = {
-        pdfDirectory,
-        csvFilePath,
-        outputDirectory: outputDirectory || undefined,
-        results: results || undefined,
-        detailedResults: detailedResults.length > 0 ? detailedResults : undefined,
-        createdAt: sessionFile ? (new Date().toISOString()) : new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      // Save session data to file
-      const result = await window.electron.saveSession(sessionData);
-
-      if (result.success && result.filePath) {
-        setSessionFile(result.filePath);
-        setMessage(`Session saved to: ${result.filePath}`);
-        setHasChanges(false);
-      } else {
-        setMessage(`Error saving session: ${result.error}`);
-      }
-    } catch (error) {
-      console.error('Error saving session:', error);
-      setMessage(`Error: ${(error as Error).message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Load session from a JSON file
-  const loadSession = async () => {
-    setIsLoading(true);
-    try {
-      // Load session data from file
-      const result = await window.electron.loadSession();
-
-      if (result.success && result.sessionData) {
-        const { pdfDirectory, csvFilePath, outputDirectory, results, detailedResults, createdAt } = result.sessionData;
-
-        // Set session state
-        setPdfDirectory(pdfDirectory);
-        setCsvFilePath(csvFilePath);
-        setOutputDirectory(outputDirectory || null);
-        setResults(results || null);
-        setDetailedResults(detailedResults || []);
-        setSessionFile(createdAt);
-        setHasChanges(false);
-
-        // Scan the PDF directory to update available files
-        await scanPdfDirectory(pdfDirectory);
-
-        setMessage('Session loaded successfully');
-      } else {
-        setMessage(`Error loading session: ${result.error}`);
-      }
-    } catch (error) {
-      console.error('Error loading session:', error);
-      setMessage(`Error: ${(error as Error).message}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Start a new session
-  const newSession = () => {
-    if (hasChanges) {
-      const confirmNewSession = window.confirm(
-        'You have unsaved changes. Are you sure you want to start a new session?'
-      );
-
-      if (!confirmNewSession) {
+      if (!pdfDirectory || !outputDirectory) {
+        setMessage('Please select both PDF directory and output location');
         return;
       }
-    }
 
-    // Reset all state
-    setPdfDirectory(null);
-    setCsvFilePath(null);
-    setOutputDirectory(null);
-    setResults(null);
-    setDetailedResults([]);
-    setPdfFiles([]);
-    setSessionFile(null);
-    setHasChanges(false);
-    setMessage('New session started');
-  };
+      setIsProcessing(true);
+      setMessage('Creating merged PDF...');
 
-  // Upload PDFs to UploadThing
-  const uploadPdfs = async () => {
-    if (!pdfDirectory) {
-      setMessage('Please select a PDF directory first');
-      return;
-    }
+      // Here you'd call your PDF creation function via the Electron API
+      // For now, just simulate success
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-    setIsUploading(true);
-    setMessage('Uploading PDFs to cloud storage...');
-    setUploadResults([]);
-    setUploadSummary(null);
-
-    try {
-      const result = await window.electron.uploadPdfs(pdfDirectory);
-
-      if (result.success) {
-        if (result.results) {
-          setUploadResults(result.results);
-        }
-
-        if (result.summary) {
-          setUploadSummary(result.summary);
-          setMessage(
-            `Uploaded ${result.summary.uploaded} of ${result.summary.total} PDFs ` +
-            `(${result.summary.skipped} skipped, ${result.summary.failed} failed)`
-          );
-        } else {
-          setMessage('PDFs uploaded successfully');
-        }
-
-        // Refresh the list of uploaded files
-        await loadUploadedFiles();
-      } else {
-        setMessage(`Error uploading PDFs: ${result.error}`);
-      }
+      setMessage(`PDF successfully created at: ${outputDirectory}/${fileName}`);
     } catch (error) {
-      console.error('Error uploading PDFs:', error);
+      console.error('Error creating PDF:', error);
       setMessage(`Error: ${(error as Error).message}`);
     } finally {
-      setIsUploading(false);
-    }
-  };
-
-  // Delete a single uploaded file
-  const deleteUploadedFile = async (localPath: string, fileName: string) => {
-    if (!confirm(`Are you sure you want to delete ${fileName}?`)) {
-      return;
-    }
-
-    setIsLoadingUploads(true);
-    try {
-      const result = await window.electron.deleteUpload(localPath);
-
-      if (result.success) {
-        // Remove the file from the list
-        setUploadedFiles(uploadedFiles.filter(file => file.localPath !== localPath));
-        setMessage(`Deleted ${fileName} successfully`);
-      } else {
-        setMessage(`Error deleting file: ${result.error}`);
-      }
-    } catch (error) {
-      console.error('Error deleting file:', error);
-      setMessage(`Error: ${(error as Error).message}`);
-    } finally {
-      setIsLoadingUploads(false);
-    }
-  };
-
-  // Copy URL to clipboard
-  const copyToClipboard = (text: string, fileName: string) => {
-    navigator.clipboard.writeText(text)
-      .then(() => setMessage(`Copied URL for ${fileName} to clipboard`))
-      .catch(err => setMessage(`Failed to copy: ${err}`));
-  };
-
-  // Open URL in browser
-  const openUrl = async (url: string) => {
-    try {
-      await window.electron.openExternalUrl(url);
-    } catch (error) {
-      console.error('Error opening URL:', error);
-      setMessage(`Error: ${(error as Error).message}`);
+      setIsProcessing(false);
     }
   };
 
   return (
     <div className="app">
-      <h1>Submittal Manager</h1>
-
-      <div className="session-controls">
-        <button
-          onClick={newSession}
-          className="session-button new-session-button"
-          disabled={isLoading || isGeneratingPdf || isUploading}
-        >
-          New Session
-        </button>
-        <button
-          onClick={loadSession}
-          className="session-button load-session-button"
-          disabled={isLoading || isGeneratingPdf || isUploading}
-        >
-          Load Session
-        </button>
-        <button
-          onClick={saveSession}
-          className="session-button save-session-button"
-          disabled={isLoading || isGeneratingPdf || isUploading || (!pdfDirectory && !csvFilePath)}
-        >
-          {hasChanges ? "Save Session*" : "Save Session"}
-        </button>
-        {sessionFile && (
-          <div className="session-info">
-            Session file: {sessionFile.split('/').pop()}
-          </div>
-        )}
-      </div>
-
-      <div className="tabs">
-        <button
-          className={`tab-button ${activeTab === 'match' ? 'active' : ''}`}
-          onClick={() => setActiveTab('match')}
-        >
-          Match PDFs
-        </button>
-        <button
-          className={`tab-button ${activeTab === 'uploads' ? 'active' : ''}`}
-          onClick={() => setActiveTab('uploads')}
-        >
-          Cloud Uploads
-        </button>
-      </div>
-
-      {activeTab === 'match' ? (
-        <div className="main-container">
-          <div className="input-section">
-            <div className="file-input-group">
-              <h2>1. Select PDF Directory</h2>
-              <div className="file-input-container">
-                <button
-                  onClick={selectPdfDirectory}
-                  disabled={isLoading || isGeneratingPdf}
-                  className="file-select-button"
-                >
-                  {pdfDirectory ? 'Change PDF Directory' : 'Select PDF Directory'}
-                </button>
-                {pdfDirectory && (
-                  <div className="file-info">
-                    <p>{pdfDirectory}</p>
-                    <p className="file-count">{pdfFiles.length} PDFs found</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="file-input-group">
-              <h2>2. Select BOM CSV File</h2>
-              <div className="file-input-container">
-                <button
-                  onClick={selectCsvFile}
-                  disabled={isLoading || isGeneratingPdf}
-                  className="file-select-button"
-                >
-                  {csvFilePath ? 'Change CSV File' : 'Select CSV File'}
-                </button>
-                {csvFilePath && (
-                  <div className="file-info">
-                    <p>{csvFilePath.split('/').pop()}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="file-input-group">
-              <h2>3. Output Location (Optional)</h2>
-              <div className="file-input-container">
-                <button
-                  onClick={selectOutputDirectory}
-                  disabled={isLoading || isGeneratingPdf}
-                  className="file-select-button"
-                >
-                  {outputDirectory ? 'Change Output Location' : 'Select Output Location'}
-                </button>
-                {outputDirectory && (
-                  <div className="file-info">
-                    <p>{outputDirectory}/{generateDefaultFileName()}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="submit-section">
-              <button
-                onClick={processBom}
-                disabled={isLoading || isGeneratingPdf || !pdfDirectory || !csvFilePath}
-                className="submit-button"
-              >
-                {isLoading ? 'Processing...' : 'Match BOM to PDFs'}
-              </button>
-            </div>
-
-            {message && (
-              <div className="message">
-                {message}
-                <button
-                  className="close-button"
-                  onClick={() => setMessage(null)}
-                >
-                  ×
-                </button>
-              </div>
-            )}
-
-            {results && (
-              <div className="results-summary">
-                <h3>Results</h3>
-                <div className="stats">
-                  <div className="stat">
-                    <span className="stat-value">{results.total}</span>
-                    <span className="stat-label">Total Items</span>
-                  </div>
-                  <div className="stat">
-                    <span className="stat-value">{results.matched}</span>
-                    <span className="stat-label">Matched</span>
-                  </div>
-                  <div className="stat">
-                    <span className="stat-value">{results.notFound}</span>
-                    <span className="stat-label">Not Found</span>
-                  </div>
-                </div>
-
-                {results.matched > 0 && (
-                  <div className="merge-pdf-container">
-                    <button
-                      className="merge-pdf-button"
-                      onClick={createMergedPdf}
-                      disabled={isLoading || isGeneratingPdf}
-                    >
-                      {isGeneratingPdf ? 'Creating PDF...' : 'Create Merged Submittal PDF'}
-                    </button>
-                    <p className="merge-help-text">Creates a single PDF containing all matched cut sheets</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {detailedResults.length > 0 && (
-              <div className="results-table-container">
-                <h3>Detailed Results</h3>
-                <div className="results-table-wrapper">
-                  <table className="results-table">
-                    <thead>
-                      <tr>
-                        <th>Manufacturer</th>
-                        <th>Part Number</th>
-                        <th>Status</th>
-                        <th>PDF Filename</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detailedResults.map((result, index) => (
-                        <tr key={index} className={
-                          result.overridden
-                            ? 'row-overridden'
-                            : result.matched
-                              ? 'row-matched'
-                              : 'row-not-matched'
-                        }>
-                          <td>{result.manufacturer}</td>
-                          <td>{result.partNumber}</td>
-                          <td className="status-cell">
-                            {result.matched ? (
-                              <span className={result.overridden ? "status-overridden" : "status-matched"}>
-                                {result.overridden ? '⚙️ Override' : '✅ Matched'}
-                              </span>
-                            ) : (
-                              <span className="status-not-matched">❌ Not Found</span>
-                            )}
-                          </td>
-                          <td>
-                            {result.fileName ? (
-                              <span className="filename" title={result.pdfPath}>{result.fileName}</span>
-                            ) : (
-                              <span className="no-filename">-</span>
-                            )}
-                          </td>
-                          <td className="action-cell">
-                            {result.overridden ? (
-                              <button
-                                className="clear-override-button"
-                                onClick={() => clearOverride(index)}
-                                title="Clear override"
-                              >
-                                ↩️ Undo
-                              </button>
-                            ) : (
-                              <button
-                                className="override-button"
-                                onClick={() => overrideMatch(index)}
-                                title="Manually select a PDF for this item"
-                              >
-                                Override
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="info-section">
-            <div className="instructions">
-              <h3>Instructions</h3>
-              <ol>
-                <li>Select a directory containing your PDF cut sheets</li>
-                <li>Select a CSV file with your Bill of Materials</li>
-                <li>Click "Match BOM to PDFs" to process</li>
-                <li>Review matches in the results table</li>
-                <li>Manually override any unmatched or incorrect PDFs</li>
-                <li>Save your session to continue later</li>
-                <li>Create a merged submittal PDF when ready</li>
-              </ol>
-              <p>CSV file must include these columns:</p>
-              <ul>
-                <li><strong>manufacturer</strong> - The manufacturer name</li>
-                <li><strong>part_number</strong> - The part identifier</li>
-              </ul>
-              <p>PDF files should include both manufacturer name and part number in the filename.</p>
-            </div>
-
-            {pdfFiles.length > 0 && (
-              <div className="pdf-list">
-                <h3>Available PDFs</h3>
-                <div className="pdf-container">
-                  <ul>
-                    {pdfFiles.map((file, index) => (
-                      <li key={index}>{file}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-          </div>
+      {projectLoading ? (
+        <div className="loading-container">
+          <p>Loading project...</p>
         </div>
+      ) : showProjectSelector ? (
+        <ProjectSelector
+          onProjectSelected={handleProjectSelected}
+        />
       ) : (
-        <div className="main-container">
-          <div className="upload-section">
-            <div className="file-input-group">
-              <h2>Select PDF Directory to Upload</h2>
-              <div className="file-input-container">
+        <div className="app-content">
+          <div className="app-header">
+            <h1>Submittal Builder</h1>
+            <div className="app-header-controls">
+              <div className="project-info">
+                <span className="project-label">Project:</span>
+                <span className="project-name">{projectName}</span>
                 <button
-                  onClick={selectPdfDirectory}
-                  disabled={isUploading || isLoadingUploads}
-                  className="file-select-button"
+                  className="project-switch-btn"
+                  onClick={() => setShowProjectSelector(true)}
                 >
-                  {pdfDirectory ? 'Change PDF Directory' : 'Select PDF Directory'}
+                  Switch Project
                 </button>
-                {pdfDirectory && (
-                  <div className="file-info">
-                    <p>{pdfDirectory}</p>
-                    <p className="file-count">{pdfFiles.length} PDFs found</p>
-                  </div>
-                )}
               </div>
-            </div>
-
-            <div className="submit-section">
               <button
-                onClick={uploadPdfs}
-                disabled={isUploading || isLoadingUploads || !pdfDirectory}
-                className="submit-button upload-button"
+                className="settings-button"
+                onClick={() => setShowSettings(true)}
               >
-                {isUploading ? 'Uploading...' : 'Upload PDFs to Cloud'}
+                Settings
               </button>
-              <p className="upload-help-text">
-                Upload PDFs to secure cloud storage for sharing
-              </p>
             </div>
+          </div>
 
-            {message && (
-              <div className="message">
+          {/* Navigation Tabs */}
+          <div className="tabs">
+            <button
+              className={`tab-button ${activeTab === 'pdfs' ? 'active' : ''}`}
+              onClick={() => setActiveTab('pdfs')}
+            >
+              PDF Processing
+            </button>
+            <button
+              className={`tab-button ${activeTab === 'csv' ? 'active' : ''}`}
+              onClick={() => setActiveTab('csv')}
+            >
+              CSV Upload
+            </button>
+            <button
+              className={`tab-button ${activeTab === 'sync' ? 'active' : ''}`}
+              onClick={() => setActiveTab('sync')}
+            >
+              Sync Files
+            </button>
+            <button
+              className={`tab-button ${activeTab === 'manual' ? 'active' : ''}`}
+              onClick={() => setActiveTab('manual')}
+            >
+              Manual Search
+            </button>
+          </div>
+
+          {/* PDF Processing Tab Content */}
+          {activeTab === 'pdfs' && (
+            <div className="tab-content">
+              <div className="controls">
+                <div className="control-group">
+                  <label>PDF Directory:</label>
+                  <div className="control-row">
+                    <input
+                      type="text"
+                      value={pdfDirectory || ''}
+                      onChange={e => setPdfDirectory(e.target.value)}
+                      placeholder="Select PDF directory"
+                    />
+                    <button onClick={selectPdfDirectory}>Browse</button>
+                  </div>
+
+                  <div className="checkbox-control">
+                    <input
+                      type="checkbox"
+                      id="recursiveSearch"
+                      checked={recursiveSearch}
+                      onChange={e => setRecursiveSearch(e.target.checked)}
+                    />
+                    <label htmlFor="recursiveSearch">Enable recursive PDF search</label>
+                  </div>
+                </div>
+
+                <div className="control-group">
+                  <label>Output Location:</label>
+                  <div className="control-row">
+                    <input
+                      type="text"
+                      value={outputDirectory || ''}
+                      onChange={e => setOutputDirectory(e.target.value)}
+                      placeholder="Select output directory"
+                    />
+                    <button onClick={selectOutputDirectory}>Browse</button>
+                  </div>
+                  <div className="control-row">
+                    <input
+                      type="text"
+                      value={fileName}
+                      onChange={e => setFileName(e.target.value)}
+                      placeholder="Enter output filename"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="message-box">
                 {message}
-                <button
-                  className="close-button"
-                  onClick={() => setMessage(null)}
-                >
-                  ×
-                </button>
               </div>
-            )}
 
-            {uploadSummary && (
-              <div className="results-summary">
-                <h3>Upload Results</h3>
-                <div className="stats">
-                  <div className="stat">
-                    <span className="stat-value">{uploadSummary.total}</span>
-                    <span className="stat-label">Total Files</span>
-                  </div>
-                  <div className="stat">
-                    <span className="stat-value">{uploadSummary.uploaded}</span>
-                    <span className="stat-label">Uploaded</span>
-                  </div>
-                  <div className="stat">
-                    <span className="stat-value">{uploadSummary.skipped}</span>
-                    <span className="stat-label">Skipped</span>
-                  </div>
-                  <div className="stat">
-                    <span className="stat-value">{uploadSummary.failed}</span>
-                    <span className="stat-label">Failed</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {uploadResults.length > 0 && (
-              <div className="results-table-container">
-                <h3>Detailed Upload Results</h3>
-                <div className="results-table-wrapper">
-                  <table className="results-table">
-                    <thead>
-                      <tr>
-                        <th>File Name</th>
-                        <th>Status</th>
-                        <th>Details</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {uploadResults.map((result, index) => (
-                        <tr key={index} className={
-                          result.isUploaded
-                            ? 'row-matched'
-                            : result.wasSkipped
-                              ? 'row-skipped'
-                              : 'row-not-matched'
-                        }>
-                          <td>{result.fileName}</td>
-                          <td className="status-cell">
-                            {result.isUploaded ? (
-                              <span className="status-matched">✅ Uploaded</span>
-                            ) : result.wasSkipped ? (
-                              <span className="status-skipped">⏭️ Skipped</span>
-                            ) : (
-                              <span className="status-not-matched">❌ Failed</span>
-                            )}
-                          </td>
-                          <td>
-                            {result.remoteUrl ? (
-                              <div className="upload-actions">
-                                <button
-                                  className="copy-url-button"
-                                  onClick={() => copyToClipboard(result.remoteUrl!, result.fileName)}
-                                  title="Copy URL to clipboard"
-                                >
-                                  Copy URL
-                                </button>
-                                <button
-                                  className="open-url-button"
-                                  onClick={() => openUrl(result.remoteUrl!)}
-                                  title="Open in browser"
-                                >
-                                  Open
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="upload-error">{result.error || 'Already uploaded'}</span>
-                            )}
-                          </td>
+              {/* PDF file list section */}
+              {pdfFiles.length > 0 && (
+                <div className="pdf-search-results">
+                  <h3>Found PDF Files ({pdfFiles.length})</h3>
+                  <div className="file-list">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>File Name</th>
+                          <th>Size</th>
+                          <th>Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            <div className="uploaded-files-section">
-              <h3>Uploaded Files</h3>
-              {isLoadingUploads ? (
-                <p>Loading uploaded files...</p>
-              ) : uploadedFiles.length === 0 ? (
-                <p>No files have been uploaded yet.</p>
-              ) : (
-                <div className="results-table-wrapper">
-                  <table className="results-table">
-                    <thead>
-                      <tr>
-                        <th>File Name</th>
-                        <th>Size</th>
-                        <th>Upload Date</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {uploadedFiles.map((file, index) => (
-                        <tr key={index}>
-                          <td>{file.fileName}</td>
-                          <td>{(file.fileSize / 1024 / 1024).toFixed(2)} MB</td>
-                          <td>{new Date(file.lastUpdated).toLocaleString()}</td>
-                          <td>
-                            <div className="upload-actions">
+                      </thead>
+                      <tbody>
+                        {pdfFiles.slice(0, 10).map((file, index) => (
+                          <tr key={index}>
+                            <td className="file-name">{file.name}</td>
+                            <td className="file-size">{(file.size / 1024).toFixed(1)} KB</td>
+                            <td className="file-actions">
                               <button
-                                className="copy-url-button"
-                                onClick={() => copyToClipboard(file.remoteUrl || '', file.fileName)}
-                                title="Copy URL to clipboard"
-                              >
-                                Copy URL
-                              </button>
-                              <button
-                                className="open-url-button"
-                                onClick={() => openUrl(file.remoteUrl || '')}
-                                title="Open in browser"
+                                className="open-file-button"
+                                onClick={() => window.electron.openFile(file.path)}
                               >
                                 Open
                               </button>
-                              <button
-                                className="delete-button"
-                                onClick={() => deleteUploadedFile(file.localPath, file.fileName)}
-                                title="Delete uploaded file"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {pdfFiles.length > 10 && (
+                      <div className="more-files-notice">
+                        and {pdfFiles.length - 10} more files...
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
-            </div>
-          </div>
 
-          <div className="info-section">
-            <div className="instructions">
-              <h3>Cloud Upload Instructions</h3>
-              <ol>
-                <li>Select a directory containing your PDF cut sheets</li>
-                <li>Click "Upload PDFs to Cloud" to begin uploading</li>
-                <li>PDFs will be uploaded to secure cloud storage</li>
-                <li>You'll receive shareable links for each PDF</li>
-                <li>Use the "Copy URL" button to share links</li>
-                <li>Links will remain active for 30 days</li>
-              </ol>
-              <div className="note">
-                <p><strong>Note:</strong> Files that have already been uploaded will be skipped unless they've been modified.</p>
+              {/* Create PDF button */}
+              <div className="merge-pdf-container">
+                <button
+                  className="merge-pdf-button"
+                  onClick={createMergedPdf}
+                  disabled={isProcessing || !pdfDirectory || !outputDirectory}
+                >
+                  {isProcessing ? 'Processing...' : 'Create Submittal PDF'}
+                </button>
+                {!pdfDirectory && (
+                  <p className="merge-help-text">Please select a PDF directory first</p>
+                )}
+                {!outputDirectory && (
+                  <p className="merge-help-text">Please select an output location</p>
+                )}
               </div>
             </div>
-          </div>
+          )}
+
+          {/* CSV Upload Tab Content (Placeholder) */}
+          {activeTab === 'csv' && (
+            <div className="tab-content">
+              <div className="file-input-group">
+                <h2>Upload CSV File</h2>
+                <div className="file-input-container">
+                  <button className="file-select-button">
+                    Select CSV File
+                  </button>
+                  <div className="file-info">
+                    <p>No file selected</p>
+                  </div>
+                </div>
+              </div>
+              <div className="message-box">
+                Select a CSV file containing manufacturer and part number information.
+              </div>
+              <div className="submit-section">
+                <button className="submit-button" disabled>Process CSV</button>
+              </div>
+            </div>
+          )}
+
+          {/* Sync Files Tab Content (Placeholder) */}
+          {activeTab === 'sync' && (
+            <div className="tab-content">
+              <div className="message-box">
+                Sync PDF files with remote storage.
+              </div>
+              <div className="session-controls">
+                <button className="session-button sync-all-btn">Sync All Files</button>
+                <button className="session-button refresh-btn">Refresh Status</button>
+              </div>
+            </div>
+          )}
+
+          {/* Manual Search Tab Content (Placeholder) */}
+          {activeTab === 'manual' && (
+            <div className="tab-content">
+              <div className="file-input-group">
+                <h2>Manual Part Search</h2>
+                <div className="form-group">
+                  <label>Manufacturer:</label>
+                  <input type="text" placeholder="e.g. Schneider Electric" />
+                </div>
+                <div className="form-group">
+                  <label>Part Number:</label>
+                  <input type="text" placeholder="e.g. SE8600U5045" />
+                </div>
+                <button className="file-select-button">
+                  Search
+                </button>
+              </div>
+              <div className="message-box">
+                Manually search for part information.
+              </div>
+            </div>
+          )}
         </div>
+      )}
+
+      {/* Settings modal rendered outside of the main content flow */}
+      {showSettings && (
+        <Settings
+          onClose={() => setShowSettings(false)}
+          pdfDirectory={pdfDirectory}
+          outputDirectory={outputDirectory}
+          onPdfDirectoryChange={setPdfDirectory}
+          onOutputDirectoryChange={setOutputDirectory}
+          onSelectPdfDirectory={selectPdfDirectory}
+          onSelectOutputDirectory={selectOutputDirectory}
+        />
       )}
     </div>
   );
